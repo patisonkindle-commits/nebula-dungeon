@@ -1,8 +1,15 @@
 // Hero entity — auto-walks through dungeon, auto-attacks enemies
-// With sprite animations: walk bob, direction flip, idle, attack punch
+// With sprite animations: proper frame-based walk, idle, attack
 
 import { CONFIG } from '../config.js';
 import { TILE } from '../tiles/TileConfig.js';
+
+const DIR = {
+  DOWN: 'down',
+  UP: 'up',
+  LEFT: 'left',
+  RIGHT: 'right',
+};
 
 export class Hero {
   constructor(scene, gridPos) {
@@ -28,7 +35,10 @@ export class Hero {
     this.expToNext = 50;
     this.gold = 0;
     this.totalGold = 0;
-    this.facingRight = true;
+
+    // Direction: down / up / left / right
+    this.facingDir = DIR.DOWN;
+    this.animating = false; // true during attack animation
 
     // Stats for meta-progression
     this.stats = {
@@ -41,10 +51,14 @@ export class Hero {
       regenPerSec: 0.5,
     };
 
-    // Create sprite from Tiny Dungeon tilesheet
-    this.sprite = scene.add.image(this.worldX, this.worldY, 'tiles', TILE.HERO_BLUE);
+    // Create hero sprite from animated spritesheet
+    this.sprite = scene.add.sprite(this.worldX, this.worldY, 'hero', 0);
     this.sprite.setDepth(10);
     this.sprite.setScale(CONFIG.TILE_SCALE);
+
+    // Ground shadow
+    this.shadow = scene.add.ellipse(this.worldX, this.worldY + 20, CONFIG.RENDER_TILE * 0.6, 6, 0x000000, 0.25);
+    this.shadow.setDepth(9);
 
     // HP bar
     this.hpBarBg = scene.add.graphics();
@@ -53,92 +67,105 @@ export class Hero {
     this.hpBar.setDepth(12);
     this.updateHpBar();
 
-    // Animation state
-    this.animating = false;
-    this.lastMoveX = 0;
-
-    // Start idle animation loop
+    // Start in idle pose
     this.startIdleAnim();
   }
 
-  // ── Idle breathing ──────────────────────────────────────
+  // ── Helper: frame/animation for current direction ─────────
+
+  _idleFrame() {
+    switch (this.facingDir) {
+      case DIR.DOWN:  return 0;
+      case DIR.RIGHT: return 4;
+      case DIR.LEFT:  return 8;
+      case DIR.UP:    return 12;
+      default:        return 0;
+    }
+  }
+
+  _walkAnimKey() {
+    return `hero-walk-${this.facingDir}`;
+  }
+
+  _attackAnimKey() {
+    return `hero-attack-${this.facingDir}`;
+  }
+
+  // ── Idle ────────────────────────────────────────────
+
   startIdleAnim() {
-    if (this._idleTween) return;
-    this._idleTween = this.scene.tweens.add({
-      targets: this.sprite,
-      scaleX: CONFIG.TILE_SCALE * 1.05,
-      scaleY: CONFIG.TILE_SCALE * 1.02,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (this.animating) return; // don't interrupt attack
+    this.sprite.stop();
+    this.sprite.setFrame(this._idleFrame());
   }
 
   stopIdleAnim() {
-    if (this._idleTween) {
-      this._idleTween.stop();
-      this._idleTween = null;
-    }
-    this.sprite.setScale(CONFIG.TILE_SCALE);
+    // no-op: idle has no running tween to stop
   }
 
-  // ── Walk bob ───────────────────────────────────────────
+  // ── Walk ────────────────────────────────────────────
+
   startWalkAnim() {
-    this.stopIdleAnim();
-    if (this._walkTween) return;
-    this._walkTween = this.scene.tweens.add({
-      targets: this.sprite,
-      y: this.worldY - 3,
-      duration: 150,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+    if (this.animating) return;
+    const cur = this.sprite.anims.currentAnim;
+    if (cur && cur.key === this._walkAnimKey()) return;
+    this.sprite.play(this._walkAnimKey());
   }
 
   stopWalkAnim() {
-    if (this._walkTween) {
-      this._walkTween.stop();
-      this._walkTween = null;
-    }
-    this.sprite.setY(this.worldY);
+    this.sprite.stop();
+    this.sprite.setFrame(this._idleFrame());
   }
 
-  // ── Attack punch ───────────────────────────────────────
+  // ── Attack ──────────────────────────────────────────
+
   playAttackAnim() {
-    // Quick forward thrust
-    const originalX = this.sprite.x;
-    const pushX = this.facingRight ? 8 : -8;
+    if (this.animating) return;
+    this.animating = true;
 
-    this.scene.tweens.add({
-      targets: this.sprite,
-      x: originalX + pushX,
-      duration: 60,
-      yoyo: true,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        this.sprite.setX(originalX);
-      }
-    });
-
-    // Quick scale squash
-    this.scene.tweens.add({
-      targets: this.sprite,
-      scaleX: CONFIG.TILE_SCALE * 1.2,
-      scaleY: CONFIG.TILE_SCALE * 0.8,
-      duration: 80,
-      yoyo: true,
-      ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (!this.moving) {
-          this.sprite.setScale(CONFIG.TILE_SCALE);
-        }
+    this.sprite.play(this._attackAnimKey());
+    this.sprite.once('animationcomplete', () => {
+      this.animating = false;
+      if (this.moving) {
+        this.sprite.play(this._walkAnimKey());
+      } else {
+        this.sprite.setFrame(this._idleFrame());
       }
     });
   }
 
-  // ── Hurt shake ─────────────────────────────────────────
+  // ── Direction system ────────────────────────────────
+
+  updateDirection(targetWorldX, targetWorldY) {
+    const dx = targetWorldX - this.worldX;
+    const dy = targetWorldY - this.worldY;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    let newDir = this.facingDir;
+    const threshold = 2; // minimum pixels to trigger direction change
+
+    if (adx > threshold || ady > threshold) {
+      if (adx > ady) {
+        newDir = dx >= 0 ? DIR.RIGHT : DIR.LEFT;
+      } else {
+        newDir = dy >= 0 ? DIR.DOWN : DIR.UP;
+      }
+    }
+
+    if (newDir !== this.facingDir) {
+      this.facingDir = newDir;
+      if (this.animating) return; // don't swap during attack
+      if (this.moving) {
+        this.sprite.play(this._walkAnimKey());
+      } else {
+        this.sprite.setFrame(this._idleFrame());
+      }
+    }
+  }
+
+  // ── Hurt / Death (effects using tweens, no frame change) ──
+
   playHurtAnim() {
     this.scene.tweens.add({
       targets: this.sprite,
@@ -153,10 +180,8 @@ export class Hero {
     });
   }
 
-  // ── Death anim ─────────────────────────────────────────
   playDeathAnim() {
-    this.stopIdleAnim();
-    this.stopWalkAnim();
+    this.sprite.stop();
     this.scene.tweens.add({
       targets: this.sprite,
       scaleX: 0,
@@ -168,14 +193,7 @@ export class Hero {
     });
   }
 
-  // ── Direction flip ─────────────────────────────────────
-  updateDirection(targetWorldX) {
-    const newFacing = targetWorldX >= this.worldX;
-    if (newFacing !== this.facingRight) {
-      this.facingRight = newFacing;
-      this.sprite.setFlipX(!this.facingRight);
-    }
-  }
+  // ── Stats / upgrades ─────────────────────────────────────
 
   applyUpgrades(upgrades) {
     this.stats.damageMult = 1 + (upgrades.damage || 0) * 0.15;
@@ -206,7 +224,6 @@ export class Hero {
       this.setTarget(p.x * CONFIG.RENDER_TILE + CONFIG.RENDER_TILE / 2,
                      p.y * CONFIG.RENDER_TILE + CONFIG.RENDER_TILE / 2);
       this.moving = true;
-      this.stopIdleAnim();
       this.startWalkAnim();
     } else {
       this.moving = false;
@@ -234,7 +251,7 @@ export class Hero {
       const dy = this.targetY - this.worldY;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      this.updateDirection(this.targetX);
+      this.updateDirection(this.targetX, this.targetY);
 
       const moveAmount = this.speed * dt;
 
@@ -261,12 +278,21 @@ export class Hero {
         this.worldX += (dx / dist) * moveAmount;
         this.worldY += (dy / dist) * moveAmount;
 
+        // Ensure walk animation is playing
+        if (!this.animating) {
+          const cur = this.sprite.anims.currentAnim;
+          if (!cur || cur.key !== this._walkAnimKey()) {
+            this.sprite.play(this._walkAnimKey());
+          }
+        }
+
         // Update gridPos (approximate)
         this.gridPos.x = Math.floor(this.worldX / CONFIG.RENDER_TILE);
         this.gridPos.y = Math.floor(this.worldY / CONFIG.RENDER_TILE);
       }
 
       this.sprite.setPosition(this.worldX, this.worldY);
+      this.shadow.setPosition(this.worldX, this.worldY + 20);
       this.updateHpBar();
     }
   }
@@ -351,9 +377,9 @@ export class Hero {
   }
 
   destroy() {
-    this.stopIdleAnim();
-    this.stopWalkAnim();
+    this.sprite.stop();
     if (this.sprite) this.sprite.destroy();
+    if (this.shadow) this.shadow.destroy();
     if (this.hpBarBg) this.hpBarBg.destroy();
     if (this.hpBar) this.hpBar.destroy();
   }
