@@ -52,6 +52,8 @@ export class Enemy {
     // Tint the sprite to match the enemy type color
     this.sprite.setTint(type.color);
     this.sprite.setVisible(false); // hide while we draw the old gfx (transition)
+    // Initialize legacy gfx for compatibility (drawSprite calls .clear())
+    this.gfx = scene.add.graphics().setVisible(false);
     this.drawSprite();
     
     // HP bar
