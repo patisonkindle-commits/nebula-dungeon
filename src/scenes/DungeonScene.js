@@ -7,6 +7,7 @@ import { Pathfinder } from '../dungeon/Pathfinder.js';
 import { Hero } from '../entities/Hero.js';
 import { Enemy, getEnemyTypeForDepth, getBossForDepth } from '../entities/Enemy.js';
 import { CombatSystem } from '../systems/Combat.js';
+import { TILE, DUNGEON_TILE_MAP, ITEM_PLACEMENTS } from '../tiles/TileConfig.js';
 
 export default class DungeonScene extends Phaser.Scene {
   constructor() {
@@ -72,67 +73,119 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   renderDungeon() {
-    this.tileGraphics = this.add.graphics();
-    this.tileGraphics.setDepth(0);
+    this.tileSprites = [];
+    this.decoSprites = [];
     
     const RT = CONFIG.RENDER_TILE;
+    const SC = CONFIG.TILE_SCALE;
     
-    // Draw each cell
+    // Pre-select tile variant arrays
+    const walls = DUNGEON_TILE_MAP.wall;
+    const floors = DUNGEON_TILE_MAP.floor;
+    const doors = DUNGEON_TILE_MAP.door;
+    const corridors = DUNGEON_TILE_MAP.corridor;
+    
+    // Draw each cell using sprites from the Kenney tilesheet
     for (let y = 0; y < this.dungeon.gridH; y++) {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const cell = this.grid[y][x];
-        const px = x * RT;
-        const py = y * RT;
+        const px = x * RT + RT / 2;
+        const py = y * RT + RT / 2;
         
+        let tileIdx;
         if (cell === 1) {
-          // Wall
-          this.tileGraphics.fillStyle(COLORS.WALL, 1);
-          this.tileGraphics.fillRect(px, py, RT, RT);
-          // Wall detail
-          this.tileGraphics.fillStyle(COLORS.WALL_DARK, 1);
-          this.tileGraphics.fillRect(px + 2, py + 2, RT - 4, 2);
+          // Wall — cycle through variants
+          tileIdx = walls[(x + y) % walls.length];
         } else if (cell === 0) {
-          // Floor
-          const shade = (x + y) % 2 === 0 ? COLORS.FLOOR : COLORS.FLOOR_LIGHT;
-          this.tileGraphics.fillStyle(shade, 1);
-          this.tileGraphics.fillRect(px, py, RT, RT);
+          // Floor — checkerboard between two variants
+          tileIdx = (x + y) % 2 === 0 ? floors[0] : floors[1 % floors.length];
         } else if (cell === 2) {
           // Door
-          this.tileGraphics.fillStyle(COLORS.DOOR, 1);
-          this.tileGraphics.fillRect(px, py, RT, RT);
-          this.tileGraphics.fillStyle(0x6b4f10, 1);
-          this.tileGraphics.fillRect(px + RT/2 - 2, py, 4, RT);
+          tileIdx = doors[(x + y) % doors.length];
         } else if (cell === 3) {
           // Corridor
-          this.tileGraphics.fillStyle(COLORS.CORRIDOR, 1);
-          this.tileGraphics.fillRect(px, py, RT, RT);
+          tileIdx = corridors[0];
+        } else {
+          continue;
         }
+        
+        const sprite = this.add.image(px, py, 'tiles', tileIdx);
+        sprite.setDepth(0);
+        sprite.setScale(SC);
+        this.tileSprites.push(sprite);
       }
     }
     
-    // Draw room labels
+    // Decorative items in rooms (chests, barrels, potions)
+    for (let i = 0; i < this.rooms.length; i++) {
+      const r = this.rooms[i];
+      this.placeRoomDecorations(r);
+    }
+    
+    // Room labels overlay (boss room border etc.)
     this.roomLabels = this.add.graphics();
     this.roomLabels.setDepth(1);
     for (let i = 0; i < this.rooms.length; i++) {
       const r = this.rooms[i];
-      const cx = (r.x + r.w / 2) * RT;
-      const cy = (r.y + r.h / 2) * RT;
       if (r.isBoss) {
-        // Boss room indicator
-        this.roomLabels.lineStyle(2, 0xff4444, 0.4);
+        this.roomLabels.lineStyle(2, 0xff4444, 0.5);
         this.roomLabels.strokeRect(r.x * RT, r.y * RT, r.w * RT, r.h * RT);
       }
     }
     
     // Entrance marker
     const ent = this.dungeon.entrance;
-    this.tileGraphics.fillStyle(0x44aaff, 0.3);
-    this.tileGraphics.fillCircle(ent.x * RT + RT/2, ent.y * RT + RT/2, RT/2);
+    this.entranceMarker = this.add.image(
+      ent.x * RT + RT / 2, ent.y * RT + RT / 2,
+      'tiles', TILE.FLOOR_CIRCLE
+    ).setDepth(1).setScale(SC).setAlpha(0.6);
     
     // Exit marker
     const ext = this.dungeon.exit;
-    this.tileGraphics.fillStyle(0xffaa44, 0.3);
-    this.tileGraphics.fillCircle(ext.x * RT + RT/2, ext.y * RT + RT/2, RT/2);
+    this.exitMarker = this.add.image(
+      ext.x * RT + RT / 2, ext.y * RT + RT / 2,
+      'tiles', TILE.FLOOR_DIAG_B
+    ).setDepth(1).setScale(SC).setAlpha(0.6);
+  }
+  
+  placeRoomDecorations(room) {
+    if (room.isBoss) return; // boss rooms stay spartan
+    
+    const RT = CONFIG.RENDER_TILE;
+    const SC = CONFIG.TILE_SCALE;
+    
+    // Place 1-3 decorative items in the room
+    const count = 1 + Math.floor(Math.random() * 3);
+    const placed = new Set();
+    
+    const decorOptions = [
+      ...ITEM_PLACEMENTS.chest,
+      ...ITEM_PLACEMENTS.barrel,
+      ...ITEM_PLACEMENTS.potion,
+      TILE.TABLE_EMPTY_A,
+      TILE.CHAIR_WOOD,
+      TILE.FENCE_A,
+    ];
+    
+    for (let d = 0; d < count; d++) {
+      const dx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+      const dy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+      const key = `${dx},${dy}`;
+      if (placed.has(key)) continue;
+      
+      // Don't place on walls/doors
+      if (this.grid[dy] && this.grid[dy][dx] !== 0) continue;
+      
+      placed.add(key);
+      const tileIdx = decorOptions[Math.floor(Math.random() * decorOptions.length)];
+      const sprite = this.add.image(
+        dx * RT + RT / 2, dy * RT + RT / 2,
+        'tiles', tileIdx
+      );
+      sprite.setDepth(1);
+      sprite.setScale(SC);
+      this.decoSprites.push(sprite);
+    }
   }
 
   spawnEnemies() {
@@ -170,6 +223,7 @@ export default class DungeonScene extends Phaser.Scene {
     if (roomIndex >= this.rooms.length) {
       // All rooms cleared! Go to exit
       this.pathfindTo(this.dungeon.exit.gridX, this.dungeon.exit.gridY);
+      this.currentTargetRoom = -1; // sentinel: at exit
       return;
     }
     
@@ -313,9 +367,10 @@ export default class DungeonScene extends Phaser.Scene {
   checkRoomProgress() {
     const room = this.rooms[this.currentTargetRoom];
     if (!room) {
-      // Reached exit zone?
-      if (this.hero.gridPos.x === this.dungeon.exit.gridX &&
-          this.hero.gridPos.y === this.dungeon.exit.gridY) {
+      // At exit zone — check if hero is near the exit
+      const dx = Math.abs(this.hero.gridPos.x - this.dungeon.exit.gridX);
+      const dy = Math.abs(this.hero.gridPos.y - this.dungeon.exit.gridY);
+      if (dx <= 1 && dy <= 1 && !this.hero.moving) {
         this.onReachedExit();
       }
       return;
@@ -408,5 +463,18 @@ export default class DungeonScene extends Phaser.Scene {
       e.destroy();
     }
     this.enemies = [];
+    
+    // Destroy tile sprites
+    if (this.tileSprites) {
+      this.tileSprites.forEach(s => { if (s) s.destroy(); });
+      this.tileSprites = [];
+    }
+    if (this.decoSprites) {
+      this.decoSprites.forEach(s => { if (s) s.destroy(); });
+      this.decoSprites = [];
+    }
+    if (this.entranceMarker) this.entranceMarker.destroy();
+    if (this.exitMarker) this.exitMarker.destroy();
+    if (this.roomLabels) this.roomLabels.destroy();
   }
 }

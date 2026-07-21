@@ -1,6 +1,7 @@
 // Hero entity — auto-walks through dungeon, auto-attacks enemies
 
 import { CONFIG } from '../config.js';
+import { TILE } from '../tiles/TileConfig.js';
 
 export class Hero {
   constructor(scene, gridPos) {
@@ -38,9 +39,10 @@ export class Hero {
       regenPerSec: 0.5,
     };
     
-    // Create sprite (programmatic pixel art)
-    this.sprite = scene.add.image(this.worldX, this.worldY, 'hero');
+    // Create sprite from Tiny Dungeon tilesheet
+    this.sprite = scene.add.image(this.worldX, this.worldY, 'tiles', TILE.HERO_BLUE);
     this.sprite.setDepth(10);
+    this.sprite.setScale(CONFIG.TILE_SCALE);
     
     // HP bar
     this.hpBarBg = scene.add.graphics();
@@ -110,6 +112,9 @@ export class Hero {
         // Reached waypoint
         this.worldX = this.targetX;
         this.worldY = this.targetY;
+        // Update gridPos on waypoint arrival
+        this.gridPos.x = Math.floor(this.worldX / CONFIG.RENDER_TILE);
+        this.gridPos.y = Math.floor(this.worldY / CONFIG.RENDER_TILE);
         this.path.shift(); // remove current waypoint
         
         if (this.path.length > 0) {

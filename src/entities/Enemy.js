@@ -1,6 +1,7 @@
 // Enemy entity + spawning
 
 import { CONFIG } from '../config.js';
+import { TILE, ENEMY_TILE_MAP } from '../tiles/TileConfig.js';
 
 const ENEMY_TYPES = [
   { name: 'Slime', color: 0x44dd44, hp: 20, damage: 5, speed: 20, gold: 5, exp: 8, size: 10 },
@@ -39,9 +40,18 @@ export class Enemy {
     this.worldX = gridPos.x * CONFIG.RENDER_TILE + CONFIG.RENDER_TILE / 2;
     this.worldY = gridPos.y * CONFIG.RENDER_TILE + CONFIG.RENDER_TILE / 2;
     
-    // Sprite — filled circle for now (will replace with pixel art)
-    this.gfx = scene.add.graphics();
-    this.gfx.setDepth(5);
+    // Sprite — use Tiny Dungeon tile for enemy type
+    const tileIdx = ENEMY_TILE_MAP[type.name] || TILE.SLIME_GREEN;
+    this.sprite = scene.add.image(this.worldX, this.worldY, 'tiles', tileIdx);
+    this.sprite.setDepth(5);
+    this.sprite.setScale(CONFIG.TILE_SCALE);
+    // Bosses are bigger
+    if (this.isBoss) {
+      this.sprite.setScale(CONFIG.TILE_SCALE * 1.5);
+    }
+    // Tint the sprite to match the enemy type color
+    this.sprite.setTint(type.color);
+    this.sprite.setVisible(false); // hide while we draw the old gfx (transition)
     this.drawSprite();
     
     // HP bar
@@ -58,24 +68,11 @@ export class Enemy {
   
   drawSprite() {
     this.gfx.clear();
-    const x = this.worldX;
-    const y = this.worldY;
-    const s = this.size;
     
-    if (this.isBoss) {
-      // Boss: larger diamond shape with outline
-      this.gfx.fillStyle(0x000000, 1);
-      this.gfx.fillTriangle(x, y - s - 1, x - s - 1, y + s + 1, x + s + 1, y + s + 1);
-      this.gfx.fillTriangle(x, y + s + 1, x - s - 1, y - s - 1, x + s + 1, y - s - 1);
-      this.gfx.fillStyle(this.type.color, 1);
-      this.gfx.fillTriangle(x, y - s, x - s, y + s, x + s, y + s);
-      this.gfx.fillTriangle(x, y + s, x - s, y - s, x + s, y - s);
-    } else {
-      // Regular: filled rectangle with outline
-      this.gfx.fillStyle(0x000000, 0.6);
-      this.gfx.fillRect(x - s/2 - 1, y - s/2 - 1, s + 2, s + 2);
-      this.gfx.fillStyle(this.type.color, 1);
-      this.gfx.fillRect(x - s/2, y - s/2, s, s);
+    // Show the sprite tile instead of drawing graphics
+    if (this.sprite) {
+      this.sprite.setVisible(true);
+      this.sprite.setPosition(this.worldX, this.worldY);
     }
   }
   
@@ -86,11 +83,14 @@ export class Enemy {
     
     // Flash
     this.gfx.setAlpha(0.3);
-    this.gfx.setTint(0xffffff);
+    if (this.sprite) this.sprite.setAlpha(0.3);
+    // Phaser 3.90 Graphics has no setTint — use alpha flash instead
     this.scene.time.delayedCall(80, () => {
       if (this.gfx && this.gfx.active) {
-        this.gfx.clearTint();
         this.gfx.setAlpha(1);
+      }
+      if (this.sprite && this.sprite.active) {
+        this.sprite.setAlpha(1);
       }
     });
     
@@ -101,6 +101,7 @@ export class Enemy {
       this.hp = 0;
       this.alive = false;
       this.gfx.setVisible(false);
+      this.sprite.setVisible(false);
       this.hpBarBg.setVisible(false);
       this.hpBar.setVisible(false);
       return { killed: true, gold: this.gold, exp: this.exp };
@@ -130,7 +131,11 @@ export class Enemy {
       this.worldX += (dx / dist) * moveAmount;
       this.worldY += (dy / dist) * moveAmount;
       this.gfx.setPosition(this.worldX, this.worldY);
+      if (this.sprite) this.sprite.setPosition(this.worldX, this.worldY);
       this.updateHpBar();
+      // Update gridPos for mini-map accuracy (BUG6 fix)
+      this.gridPos.x = Math.floor(this.worldX / CONFIG.RENDER_TILE);
+      this.gridPos.y = Math.floor(this.worldY / CONFIG.RENDER_TILE);
     }
   }
   
@@ -164,6 +169,7 @@ export class Enemy {
   
   destroy() {
     if (this.gfx) this.gfx.destroy();
+    if (this.sprite) this.sprite.destroy();
     if (this.hpBarBg) this.hpBarBg.destroy();
     if (this.hpBar) this.hpBar.destroy();
   }
