@@ -48,7 +48,8 @@ export default class DungeonScene extends Phaser.Scene {
     // Camera follows hero
     this.cameras.main.setBounds(0, 0, this.worldW, this.worldH);
     this.cameras.main.startFollow(this.hero.sprite, true, 0.15, 0.15);
-    this.cameras.main.setZoom(1.5);
+    this.cameras.main.setZoom(1.2);
+    this.cameras.main.roundPixels = true;
     
     // Spawn enemies
     this.enemies = [];

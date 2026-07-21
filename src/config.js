@@ -3,8 +3,8 @@ export const CONFIG = {
   WIDTH: 480,
   HEIGHT: 800,
   TILE: 16,        // base pixel art size
-  TILE_SCALE: 2,   // rendered at 2x = 32px per tile
-  RENDER_TILE: 32, // TILE * TILE_SCALE
+  TILE_SCALE: 3,   // rendered at 3x = 48px per tile (integer scale = crisp)
+  RENDER_TILE: 48, // TILE * TILE_SCALE
   
   DUNGEON: {
     ROOMS_X: 5,           // rooms across
