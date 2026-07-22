@@ -4,16 +4,15 @@ export class CombatSystem {
   constructor(scene) {
     this.scene = scene;
     this.damageNumbers = [];
-    this.heroAttackCooldown = 0;
-    this.enemyAttackCooldowns = new Map();
+    this.heroAttackTimer = 0;
   }
 
   update(dt, hero, enemies) {
     if (!hero.alive) return;
 
-    this.heroAttackCooldown -= dt;
+    this.heroAttackTimer -= dt;
 
-    // Find nearest enemy
+    // Hero auto-attacks nearest enemy (every 0.8s)
     let nearestEnemy = null;
     let nearestDist = Infinity;
 
@@ -28,11 +27,10 @@ export class CombatSystem {
       }
     }
 
-    // Hero auto-attack (every 1.5s)
-    if (nearestEnemy && nearestDist < 80 && this.heroAttackCooldown <= 0) {
-      const dmg = 15;
+    if (nearestEnemy && nearestDist < 100 && this.heroAttackTimer <= 0) {
+      const dmg = 25;
       const result = nearestEnemy.takeDamage(dmg);
-      this.heroAttackCooldown = 1.5;
+      this.heroAttackTimer = 0.8;
       this.showDamage(nearestEnemy.x, nearestEnemy.y, dmg, '#ffffff');
 
       if (result.killed) {
@@ -44,23 +42,17 @@ export class CombatSystem {
       }
     }
 
-    // Enemies attack hero
+    // Enemies attack hero — slower and less frequent
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
       
-      let cd = this.enemyAttackCooldowns.get(enemy) || 0;
-      cd -= dt;
-      this.enemyAttackCooldowns.set(enemy, cd);
+      const now = this.scene.time.now;
+      const timeSinceLast = (now - enemy.lastAttackTime) / 1000;
       
-      const dx = hero.x - enemy.x;
-      const dy = hero.y - enemy.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist < 60 && cd <= 0) {
-        const dmg = enemy.type === 'orc' ? 10 : 8;
-        hero.takeDamage(dmg);
-        this.enemyAttackCooldowns.set(enemy, 2.0);
-        this.showDamage(hero.x, hero.y - 20, dmg, '#ff4444');
+      if (enemy.canAttack(hero) && timeSinceLast > enemy.attackCooldown) {
+        hero.takeDamage(enemy.attackDmg);
+        enemy.lastAttackTime = now;
+        this.showDamage(hero.x, hero.y - 20, enemy.attackDmg, '#ff4444');
       }
     }
 

@@ -7,17 +7,18 @@ export class Hero {
 
         this.x = x;
         this.y = y;
-        this.speed = 80;
-        this.hp = 500;
-        this.maxHp = 500;
+        this.speed = 100;
+        this.hp = 1000;
+        this.maxHp = 1000;
         this.gold = 0;
         this.alive = true;
-        this.isMoving = false;
-        this.moveDirection = { x: 0, y: 0 };
         
         // Invulnerability at start
         this.invulnerableTimer = 3.0;
-        this.sprite.setAlpha(0.5);
+        this.sprite.setAlpha(0.4);
+        
+        // Auto-move to next room
+        this.moveTarget = null;
     }
 
     update(dt) {
@@ -27,26 +28,29 @@ export class Hero {
                 this.sprite.setAlpha(1);
             }
         }
-        if (this.isMoving) {
-            this.sprite.x += this.moveDirection.x * this.speed * dt;
-            this.sprite.y += this.moveDirection.y * this.speed * dt;
-            this.x = this.sprite.x;
-            this.y = this.sprite.y;
+        
+        // Auto-move towards target if set
+        if (this.moveTarget) {
+            const dx = this.moveTarget.x - this.x;
+            const dy = this.moveTarget.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 10) {
+                this.x += (dx / dist) * this.speed * dt;
+                this.y += (dy / dist) * this.speed * dt;
+                this.sprite.x = this.x;
+                this.sprite.y = this.y;
+            } else {
+                this.moveTarget = null;
+            }
         }
     }
 
-    move(dx, dy) {
-        this.moveDirection = { x: dx, y: dy };
-        this.isMoving = true;
-    }
-
-    stop() {
-        this.isMoving = false;
-        this.moveDirection = { x: 0, y: 0 };
+    setMoveTarget(x, y) {
+        this.moveTarget = { x, y };
     }
 
     takeDamage(amount) {
-        if (this.invulnerableTimer > 0) return; // No damage during grace period
+        if (this.invulnerableTimer > 0) return;
         this.hp -= amount;
         if (this.hp <= 0) {
             this.hp = 0;

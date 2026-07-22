@@ -4,51 +4,70 @@ export class Enemy {
         
         const textureKey = type === 'orc' ? 'orc_archer' : 'skeleton';
         this.sprite = scene.add.image(x, y, textureKey);
-        this.sprite.setScale(1.5);
+        this.sprite.setScale(2);
         this.sprite.setDepth(10);
 
         this.x = x;
         this.y = y;
-        this.speed = type === 'orc' ? 60 : 80; 
-        this.hp = type === 'orc' ? 80 : 50;
-        this.maxHp = this.hp;
+        this.homeX = x;
+        this.homeY = y;
         this.type = type;
         this.alive = true;
-        this.range = type === 'orc' ? 250 : 60;
+        this.hp = type === 'orc' ? 100 : 60;
+        this.maxHp = this.hp;
+        this.attackDmg = type === 'orc' ? 12 : 8;
+        this.attackRange = type === 'orc' ? 200 : 50;
+        this.attackCooldown = type === 'orc' ? 2.5 : 1.5;
         this.lastAttackTime = 0;
+        this.aggroRange = 120; // How far they chase
+        this.leashRange = 200; // Max chase distance from home
+        this.speed = type === 'orc' ? 20 : 25; // Slow chase speed
     }
 
-    update(dt, hero) {
-        if (!hero || !hero.alive) return;
-
-        const dx = hero.x - this.x;
-        const dy = hero.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (this.type === 'orc') {
-            if (dist > this.range) {
-                this.x += (dx / dist) * this.speed;
-                this.y += (dy / dist) * this.speed;
-            } else {
-                this.handleRangedAttack(hero);
-            }
-        } else {
-            if (dist > 60) {
-                this.x += (dx / dist) * this.speed;
-                this.y += (dy / dist) * this.speed;
-            }
-        }
-        
+    refreshSprite() {
         this.sprite.x = this.x;
         this.sprite.y = this.y;
     }
 
-    handleRangedAttack(hero) {
-        const now = this.scene.time.now;
-        if (now - this.lastAttackTime > 1500) {
-            hero.takeDamage(10);
-            this.lastAttackTime = now;
+    update(dt, hero) {
+        if (!hero || !hero.alive) {
+            this.refreshSprite();
+            return;
         }
+
+        const dx = hero.x - this.x;
+        const dy = hero.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        const distFromHome = Math.sqrt(
+            (this.x - this.homeX) ** 2 + 
+            (this.y - this.homeY) ** 2
+        );
+
+        // If hero enters aggro range and we haven't exceeded leash
+        if (dist < this.aggroRange && distFromHome < this.leashRange) {
+            // Move towards hero slowly
+            if (dist > this.attackRange) {
+                this.x += (dx / dist) * this.speed * dt;
+                this.y += (dy / dist) * this.speed * dt;
+            }
+        } else if (distFromHome > 5) {
+            // Return home
+            const hdx = this.homeX - this.x;
+            const hdy = this.homeY - this.y;
+            const hDist = Math.sqrt(hdx * hdx + hdy * hdy);
+            this.x += (hdx / hDist) * this.speed * 1.5 * dt;
+            this.y += (hdy / hDist) * this.speed * 1.5 * dt;
+        }
+
+        this.refreshSprite();
+    }
+
+    canAttack(hero) {
+        const dx = hero.x - this.x;
+        const dy = hero.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist < this.attackRange;
     }
 
     takeDamage(amount) {
@@ -57,7 +76,7 @@ export class Enemy {
             this.hp = 0;
             this.alive = false;
         }
-        return { killed: !this.alive, exp: 10, gold: 10 };
+        return { killed: !this.alive, exp: 15, gold: 5 + Math.floor(Math.random() * 10) };
     }
 
     destroy() {
@@ -66,7 +85,7 @@ export class Enemy {
 }
 
 export function getEnemyTypeForDepth(depth) {
-    if (depth > 5) return 'orc';
+    if (depth % 3 === 0) return 'orc';
     return 'skeleton';
 }
 
