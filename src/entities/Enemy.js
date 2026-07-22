@@ -72,6 +72,11 @@ export class Enemy {
 
     takeDamage(amount) {
         this.hp -= amount;
+        // Flash red on hit
+        this.sprite.setTint(0xff4444);
+        this.scene.time.delayedCall(80, () => {
+            if (this.sprite && this.alive) this.sprite.clearTint();
+        });
         if (this.hp <= 0) {
             this.hp = 0;
             this.alive = false;
