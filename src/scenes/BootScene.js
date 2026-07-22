@@ -1,134 +1,41 @@
-// Boot scene — loads spritesheets and creates animations
-// Kenney Tiny Dungeon pack (CC0): https://kenney.nl/assets/tiny-dungeon
-
-import Phaser from 'phaser';
+import { TILE_SIZE } from '../config/TileConfig.js';
 
 export default class BootScene extends Phaser.Scene {
-  constructor() {
-    super('boot');
-  }
+    constructor() {
+        super('BootScene');
+    }
 
-  preload() {
-    // Load Kenney Tiny Dungeon packed tilemap as spritesheet
-    // 192x176 image = 12 columns × 11 rows of 16×16 tiles
-    // Indexed left-to-right, top-to-bottom (frames 0—131)
-    this.load.spritesheet('tiles', 'assets/tiles.png', {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
+    preload() {
+        // Load the new Dungeon Tileset
+        this.load.spritesheet('tiles', 'assets/dungeon_assets/Tilesets/dungeon1tiles.png', {
+            frameWidth: TILE_SIZE,
+            frameHeight: TILE_SIZE
+        });
 
-    // Load hero animated spritesheet
-    // 64x64 image = 4 columns × 4 rows of 16×16 tiles (16 frames total)
-    // Row 0: Front-facing (idle, walk1, walk2, attack)
-    // Row 1: Right-facing (idle, walk1, walk2, attack)
-    // Row 2: Left-facing (idle, walk1, walk2, attack)
-    // Row 3: Back-facing (idle, walk1, walk2, attack)
-    this.load.spritesheet('hero', 'assets/hero.png', {
-      frameWidth: 16,
-      frameHeight: 16,
-    });
-  }
+        // Load the high-quality Wizard Hero
+        this.load.spritesheet('wizard', 'assets/debts_assets/Characters/sprWizard.png', {
+            frameWidth: 64, // Adjusting to typical premium sprite size
+            frameHeight: 64
+        });
 
-  create() {
-    // ── Hero walk animations (looping) ──────────────────────
-    const walkRate = 8; // fps
+        // Load the high-quality Skeleton Enemy
+        this.load.spritesheet('skeleton', 'assets/debts_assets/Characters/sprSkeleton3.png', {
+            frameWidth: 64,
+            frameHeight: 64
+        });
 
-    this.anims.create({
-      key: 'hero-walk-front',
-      frames: [
-        { key: 'hero', frame: 0 },
-        { key: 'hero', frame: 1 },
-        { key: 'hero', frame: 0 },
-        { key: 'hero', frame: 2 },
-      ],
-      frameRate: walkRate,
-      repeat: -1,
-    });
+        // Load environment props from DebtsInTheDepths
+        this.load.image('gold_vein', 'assets/debts_assets/Environment/sprGoldVein.png');
+        this.load.image('rock', 'assets/debts_assets/Environment/sprRock.png');
+        this.load.image('lava', 'assets/debts_assets/Environment/sprLava.png');
 
-    this.anims.create({
-      key: 'hero-walk-right',
-      frames: [
-        { key: 'hero', frame: 4 },
-        { key: 'hero', frame: 5 },
-        { key: 'hero', frame: 4 },
-        { key: 'hero', frame: 6 },
-      ],
-      frameRate: walkRate,
-      repeat: -1,
-    });
+        // UI Assets
+        this.load.image('ui_bg', 'assets/debts_assets/UI/background.png'); // Example path, may need adjustment
+    }
 
-    this.anims.create({
-      key: 'hero-walk-left',
-      frames: [
-        { key: 'hero', frame: 8 },
-        { key: 'hero', frame: 9 },
-        { key: 'hero', frame: 8 },
-        { key: 'hero', frame: 10 },
-      ],
-      frameRate: walkRate,
-      repeat: -1,
-    });
-
-    this.anims.create({
-      key: 'hero-walk-back',
-      frames: [
-        { key: 'hero', frame: 12 },
-        { key: 'hero', frame: 13 },
-        { key: 'hero', frame: 12 },
-        { key: 'hero', frame: 14 },
-      ],
-      frameRate: walkRate,
-      repeat: -1,
-    });
-
-    // ── Hero attack animations (single-shot) ────────────────
-    const atkRate = 12; // fps
-
-    this.anims.create({
-      key: 'hero-attack-front',
-      frames: [
-        { key: 'hero', frame: 0 },
-        { key: 'hero', frame: 3 },
-        { key: 'hero', frame: 0 },
-      ],
-      frameRate: atkRate,
-      repeat: 0,
-    });
-
-    this.anims.create({
-      key: 'hero-attack-right',
-      frames: [
-        { key: 'hero', frame: 4 },
-        { key: 'hero', frame: 7 },
-        { key: 'hero', frame: 4 },
-      ],
-      frameRate: atkRate,
-      repeat: 0,
-    });
-
-    this.anims.create({
-      key: 'hero-attack-left',
-      frames: [
-        { key: 'hero', frame: 8 },
-        { key: 'hero', frame: 11 },
-        { key: 'hero', frame: 8 },
-      ],
-      frameRate: atkRate,
-      repeat: 0,
-    });
-
-    this.anims.create({
-      key: 'hero-attack-back',
-      frames: [
-        { key: 'hero', frame: 12 },
-        { key: 'hero', frame: 15 },
-        { key: 'hero', frame: 12 },
-      ],
-      frameRate: atkRate,
-      repeat: 0,
-    });
-
-    // Go to title screen
-    this.scene.start('title');
-  }
+    create() {
+        console.log("Assets Loaded Successfully!");
+        // Transition to next scene logic here
+        this.scene.start('TitleScene');
+    }
 }
