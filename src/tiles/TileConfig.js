@@ -47,11 +47,10 @@ export const TILE = Object.freeze({
 
 // Dungeon rendering tile assignments
 export const DUNGEON_TILE_MAP = {
-  // Use distinctly different tilesets for wall vs floor
-  wall: [TILE.WALL_C, TILE.WALL_D, TILE.WALL_E, TILE.WALL_F, TILE.WALL_G, TILE.WALL_H],
-  floor: [TILE.FLOOR_A, TILE.FLOOR_B, TILE.FLOOR_C, TILE.FLOOR_D],
-  door: [TILE.WALL_I, TILE.WALL_J],
-  corridor: [TILE.WALL_A, TILE.WALL_B],
+  wall: [TILE.WALL_D, TILE.WALL_E, TILE.WALL_F],
+  floor: [TILE.FLOOR_A],  // single plain floor tile
+  door: [TILE.WALL_C, TILE.WALL_H],
+  corridor: [TILE.WALL_DARK_A],
 };
 
 // Item tiles
