@@ -33,12 +33,9 @@ export default class DungeonScene extends Phaser.Scene {
     
     this.renderDungeon();
     
-    // Place hero at entrance
-    this.entrancePixel = {
-      x: this.dungeon.entrance.x * RT + RT / 2,
-      y: this.dungeon.entrance.y * RT + RT / 2
-    };
-    this.hero = new Hero(this, this.entrancePixel.x, this.entrancePixel.y);
+    const entX = this.dungeon.entrance.x * RT + RT / 2;
+    const entY = this.dungeon.entrance.y * RT + RT / 2;
+    this.hero = new Hero(this, entX, entY);
     this.hero.gold = this.heroGold;
     
     this.cameras.main.setBounds(0, 0, this.worldW, this.worldH);
@@ -46,38 +43,49 @@ export default class DungeonScene extends Phaser.Scene {
     this.cameras.main.setZoom(1);
     this.cameras.main.roundPixels = true;
     
-    // Spawn enemies with room tracking
     this.enemies = [];
-    this.roomEnemyCounts = [];
+    this.roomEnemies = []; // [roomIdx] = [enemy, ...]
     this.spawnEnemies();
     
     this.createHUD();
     this.heroDeathHandled = false;
     this.currentRoomIdx = 0;
-    this.arrivedAtRoom = false;
+    this.roomCleared = false;
     
-    // Start after grace period
-    this.time.delayedCall(2000, () => this.proceedToNext());
+    // Start after invuln
+    this.time.delayedCall(3000, () => this.advanceTo(1));
+  }
+
+  advanceTo(idx) {
+    if (!this.hero || !this.hero.alive) return;
+    if (idx >= this.rooms.length) {
+      this.cleanUp();
+      this.scene.start('upgrade', { depth: this.dungeonDepth, gold: this.hero.gold, upgrades: {} });
+      return;
+    }
+    this.currentRoomIdx = idx;
+    this.roomCleared = false;
+    const room = this.rooms[idx];
+    const cx = (room.x + room.w / 2) * CONFIG.RENDER_TILE;
+    const cy = (room.y + room.h / 2) * CONFIG.RENDER_TILE;
+    this.hero.setMoveTarget(cx, cy);
+    this.statusText.setText(`➡ Room ${idx + 1}`);
   }
 
   renderDungeon() {
-    const RT = CONFIG.RENDER_TILE;
-    const SC = CONFIG.TILE_SCALE;
+    const RT = CONFIG.RENDER_TILE, SC = CONFIG.TILE_SCALE;
     this.tileSprites = [];
-    
     for (let y = 0; y < this.dungeon.gridH; y++) {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const cell = this.grid[y][x];
-        const px = x * RT + RT / 2;
-        const py = y * RT + RT / 2;
+        const px = x * RT + RT / 2, py = y * RT + RT / 2;
         let idx;
         if (cell === 1) idx = DUNGEON_TILE_MAP.wall[(x+y) % DUNGEON_TILE_MAP.wall.length];
         else if (cell === 0) idx = DUNGEON_TILE_MAP.floor[(x+y) % DUNGEON_TILE_MAP.floor.length];
         else if (cell === 2) idx = DUNGEON_TILE_MAP.door[(x+y) % DUNGEON_TILE_MAP.door.length];
         else if (cell === 3) idx = DUNGEON_TILE_MAP.corridor[0];
         else continue;
-        const s = this.add.image(px, py, 'tiles', idx).setDepth(0).setScale(SC);
-        this.tileSprites.push(s);
+        this.tileSprites.push(this.add.image(px, py, 'tiles', idx).setDepth(0).setScale(SC));
       }
     }
   }
@@ -87,45 +95,24 @@ export default class DungeonScene extends Phaser.Scene {
     for (let i = 1; i < this.rooms.length; i++) {
       const room = this.rooms[i];
       const count = room.isBoss ? 3 : 2;
-      let roomCount = 0;
+      this.roomEnemies[i] = [];
       for (let e = 0; e < count; e++) {
         const gx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
         const gy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
         if (this.grid[gy]?.[gx] !== 0) continue;
         const type = getEnemyTypeForDepth(this.dungeonDepth);
-        this.enemies.push(new Enemy(this, gx * RT + RT / 2, gy * RT + RT / 2, type));
-        roomCount++;
+        const enemy = new Enemy(this, gx * RT + RT / 2, gy * RT + RT / 2, type);
+        this.enemies.push(enemy);
+        this.roomEnemies[i].push(enemy);
       }
-      this.roomEnemyCounts[i] = roomCount;
     }
-  }
-
-  proceedToNext() {
-    if (!this.hero || !this.hero.alive) return;
-    this.currentRoomIdx++;
-    this.arrivedAtRoom = false;
-    
-    if (this.currentRoomIdx >= this.rooms.length) {
-      this.statusText.setText('🏆 All cleared!');
-      this.time.delayedCall(2000, () => {
-        this.cleanUp();
-        this.scene.start('upgrade', { depth: this.dungeonDepth, gold: this.hero.gold, upgrades: {} });
-      });
-      return;
-    }
-    
-    const room = this.rooms[this.currentRoomIdx];
-    const cx = (room.x + room.w / 2) * CONFIG.RENDER_TILE;
-    const cy = (room.y + room.h / 2) * CONFIG.RENDER_TILE;
-    this.hero.setMoveTarget(cx, cy);
-    this.statusText.setText(`➡ Room ${this.currentRoomIdx + 1}...`);
   }
 
   createHUD() {
     this.goldText = this.add.text(8, 8, '', { fontSize: '12px', color: '#ffd700', fontFamily: 'monospace', stroke: '#000', strokeThickness: 3 }).setScrollFactor(0).setDepth(101);
     this.depthText = this.add.text(CONFIG.WIDTH / 2, 8, '', { fontSize: '11px', color: '#4a9eff', fontFamily: 'monospace', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     this.hpText = this.add.text(CONFIG.WIDTH - 8, 8, '', { fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', stroke: '#000', strokeThickness: 3 }).setOrigin(1, 0).setScrollFactor(0).setDepth(101);
-    this.statusText = this.add.text(CONFIG.WIDTH / 2, CONFIG.HEIGHT - 20, 'Entering dungeon...', { fontSize: '9px', color: '#8899aa', fontFamily: 'monospace', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setScrollFactor(0).setDepth(101).setAlpha(0.7);
+    this.statusText = this.add.text(CONFIG.WIDTH / 2, CONFIG.HEIGHT - 20, '⚔ Entering...', { fontSize: '9px', color: '#8899aa', fontFamily: 'monospace', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setScrollFactor(0).setDepth(101).setAlpha(0.7);
   }
 
   updateHUD() {
@@ -138,44 +125,37 @@ export default class DungeonScene extends Phaser.Scene {
     const dt = delta / 1000;
     if (!this.hero || !this.hero.alive) return;
     this.hero.update(dt);
-    
-    for (const enemy of this.enemies) {
-      if (enemy.alive) enemy.update(dt, this.hero);
-    }
-    
+    for (const e of this.enemies) if (e.alive) e.update(dt, this.hero);
     this.combat.update(dt, this.hero, this.enemies);
     
-    // Check if hero arrived at current room
-    if (this.currentRoomIdx > 0 && this.currentRoomIdx < this.rooms.length && !this.arrivedAtRoom) {
-      const room = this.rooms[this.currentRoomIdx];
-      const rx = (room.x + room.w / 2) * CONFIG.RENDER_TILE;
-      const ry = (room.y + room.h / 2) * CONFIG.RENDER_TILE;
-      const dist = Math.sqrt((this.hero.x - rx) ** 2 + (this.hero.y - ry) ** 2);
+    // Room progression
+    if (this.currentRoomIdx > 0 && this.currentRoomIdx < this.rooms.length) {
+      const roomList = this.roomEnemies[this.currentRoomIdx] || [];
+      const aliveInRoom = roomList.filter(e => e.alive).length;
       
-      if (dist < 30 && !this.hero.isMoving()) {
-        this.arrivedAtRoom = true;
-        const alive = this.enemies.filter(e => e.alive).length;
-        if (alive === 0) {
+      if (!this.hero.isMoving() && !this.roomCleared) {
+        // Hero arrived — start fighting
+        if (aliveInRoom === 0) {
+          // No enemies here, skip
+          this.roomCleared = true;
           this.hero.gold += 20;
-          this.time.delayedCall(500, () => this.proceedToNext());
+          this.statusText.setText('✅ Empty room!');
+          this.time.delayedCall(400, () => this.advanceTo(this.currentRoomIdx + 1));
+        } else {
+          this.statusText.setText(`⚔ ${aliveInRoom} enemy${aliveInRoom > 1 ? 'ies' : ''}`);
         }
       }
-    }
-    
-    // If all enemies dead and we've arrived, move to next
-    if (this.arrivedAtRoom && this.currentRoomIdx > 0) {
-      const alive = this.enemies.filter(e => e.alive).length;
-      if (alive === 0) {
-        this.arrivedAtRoom = false;
+      
+      if (aliveInRoom === 0 && this.roomCleared === false) {
+        // Room just cleared
+        this.roomCleared = true;
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
-        this.time.delayedCall(800, () => this.proceedToNext());
-      } else {
-        this.statusText.setText(`⚔ ${alive} left`);
+        this.time.delayedCall(600, () => this.advanceTo(this.currentRoomIdx + 1));
       }
     }
     
-    // Death check
+    // Death
     if (!this.hero.alive && !this.heroDeathHandled) {
       this.heroDeathHandled = true;
       this.statusText.setText('💀 Hero has fallen...');
