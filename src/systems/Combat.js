@@ -1,23 +1,26 @@
 // Combat system — handles attack logic between hero and enemies
-// With attack animation triggers
 
 export class CombatSystem {
   constructor(scene) {
     this.scene = scene;
     this.damageNumbers = [];
+    this.heroAttackCooldown = 0;
+    this.enemyAttackCooldowns = new Map();
   }
 
   update(dt, hero, enemies) {
     if (!hero.alive) return;
 
-    // Hero auto-attacks nearest enemy
+    this.heroAttackCooldown -= dt;
+
+    // Find nearest enemy
     let nearestEnemy = null;
     let nearestDist = Infinity;
 
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
-      const dx = hero.worldX - enemy.worldX;
-      const dy = hero.worldY - enemy.worldY;
+      const dx = hero.x - enemy.x;
+      const dy = hero.y - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -25,20 +28,17 @@ export class CombatSystem {
       }
     }
 
-    // Hero attack
-    if (nearestEnemy && nearestDist < hero.attackRange && hero.isReadyToAttack()) {
-      const result = nearestEnemy.takeDamage(hero.attackDamage);
-      hero.resetAttackCooldown();
-      hero.playAttackAnim(); // ← attack animation
-      this.showDamage(nearestEnemy.worldX, nearestEnemy.worldY, hero.attackDamage, '#ffffff');
+    // Hero auto-attack (every 1.5s)
+    if (nearestEnemy && nearestDist < 80 && this.heroAttackCooldown <= 0) {
+      const dmg = 15;
+      const result = nearestEnemy.takeDamage(dmg);
+      this.heroAttackCooldown = 1.5;
+      this.showDamage(nearestEnemy.x, nearestEnemy.y, dmg, '#ffffff');
 
       if (result.killed) {
-        hero.addExp(result.exp);
         hero.gold += result.gold;
-        hero.totalGold += result.gold;
-        this.showDamage(nearestEnemy.worldX, nearestEnemy.worldY - 10, result.exp, '#44ff88');
-        // Remove enemy after brief delay (let death animation play)
-        this.scene.time.delayedCall(400, () => {
+        this.showDamage(nearestEnemy.x, nearestEnemy.y - 20, result.exp, '#44ff88');
+        this.scene.time.delayedCall(300, () => {
           nearestEnemy.destroy();
         });
       }
@@ -47,13 +47,21 @@ export class CombatSystem {
     // Enemies attack hero
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
-      if (!enemy.canAttack(hero)) continue;
-
-      const dmg = enemy.damage;
-      hero.takeDamage(dmg);
-      enemy.resetAttackCooldown();
-      enemy.playAttackAnim(hero.worldX); // ← enemy attack animation
-      this.showDamage(hero.worldX, hero.worldY - 10, dmg, '#ff4444');
+      
+      let cd = this.enemyAttackCooldowns.get(enemy) || 0;
+      cd -= dt;
+      this.enemyAttackCooldowns.set(enemy, cd);
+      
+      const dx = hero.x - enemy.x;
+      const dy = hero.y - enemy.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < 60 && cd <= 0) {
+        const dmg = enemy.type === 'orc' ? 10 : 8;
+        hero.takeDamage(dmg);
+        this.enemyAttackCooldowns.set(enemy, 2.0);
+        this.showDamage(hero.x, hero.y - 20, dmg, '#ff4444');
+      }
     }
 
     // Update damage numbers
