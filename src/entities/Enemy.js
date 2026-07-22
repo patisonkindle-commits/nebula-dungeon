@@ -17,9 +17,9 @@ export class Enemy extends Phaser.GameObjects.Sprite {
         this.attackRange = type === 'orc' ? 200 : 50;
         this.attackCooldown = type === 'orc' ? 2.5 : 1.5;
         this.lastAttackTime = 0;
-        this.aggroRange = 120;
-        this.leashRange = 200;
-        this.speed = type === 'orc' ? 20 : 25;
+        this.aggroRange = 200;
+        this.leashRange = 400;
+        this.speed = type === 'orc' ? 25 : 30;
         
         // Start walk animation
         this.play(type === 'orc' ? 'orc_archer_walk' : 'skeleton_walk');

@@ -27,7 +27,7 @@ export class CombatSystem {
       }
     }
 
-    if (nearestEnemy && nearestDist < 100 && this.heroAttackTimer <= 0) {
+    if (nearestEnemy && nearestDist < 200 && this.heroAttackTimer <= 0) {
       const dmg = 25;
       const result = nearestEnemy.takeDamage(dmg);
       this.heroAttackTimer = 0.8;
