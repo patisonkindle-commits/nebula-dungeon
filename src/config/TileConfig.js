@@ -1,6 +1,6 @@
 export const TILESET_PATH = 'assets/dungeon_assets/Tilesets/dungeon1tiles.png';
 
-export const TILE_SIZE = 32; // Standard for this sheet
+export const TILE_SIZE = 16; // Standard for this sheet
 
 export const TILE_TYPES = {
     FLOOR: 0,

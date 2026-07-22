@@ -6,8 +6,8 @@ export default class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        // Load the Kenney Tiny Dungeon tileset (12x11 grid, 16px tiles)
-        this.load.spritesheet('tiles', '/nebula-dungeon/assets/tiles.png', {
+        // Load the Dungeon1 tileset (8x7 grid, 16px tiles)
+        this.load.spritesheet('tiles', '/nebula-dungeon/assets/dungeon_assets/Tilesets/dungeon1tiles.png', {
             frameWidth: 16,
             frameHeight: 16
         });
