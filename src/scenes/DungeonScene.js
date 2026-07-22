@@ -37,13 +37,21 @@ export default class DungeonScene extends Phaser.Scene {
     for (let y = 0; y < this.dungeon.gridH; y++) {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const c = this.grid[y][x], px = x*RT+RT/2, py = y*RT+RT/2;
-        let idx;
-        if (c === 1) idx = DUNGEON_TILE_MAP.wall[(x+y)%DUNGEON_TILE_MAP.wall.length];
-        else if (c === 0) idx = DUNGEON_TILE_MAP.floor[(x+y)%DUNGEON_TILE_MAP.floor.length];
-        else if (c === 2) idx = DUNGEON_TILE_MAP.door[(x+y)%DUNGEON_TILE_MAP.door.length];
-        else if (c === 3) idx = DUNGEON_TILE_MAP.corridor[0];
-        else continue;
-        this.tileSprites.push(this.add.image(px, py, 'tiles', idx).setDepth(0).setScale(SC));
+        let idx, tint = 0xffffff;
+        if (c === 1) {
+          idx = DUNGEON_TILE_MAP.wall[(x+y)%DUNGEON_TILE_MAP.wall.length];
+          tint = 0x8899aa; // dim wall tiles
+        } else if (c === 0) {
+          idx = DUNGEON_TILE_MAP.floor[(x+y)%DUNGEON_TILE_MAP.floor.length];
+          tint = 0xccddee; // brighter floor tiles
+        } else if (c === 2) {
+          idx = DUNGEON_TILE_MAP.door[(x+y)%DUNGEON_TILE_MAP.door.length];
+        } else if (c === 3) {
+          idx = DUNGEON_TILE_MAP.corridor[0];
+          tint = 0x667788;
+        } else continue;
+        const s = this.add.image(px, py, 'tiles', idx).setDepth(0).setScale(SC).setTint(tint);
+        this.tileSprites.push(s);
       }
     }
     

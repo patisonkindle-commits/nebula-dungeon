@@ -1,79 +1,64 @@
 // Dungeon1 Tileset Configuration
 // File: dungeon1tiles.png (128x112 = 8x7 tiles of 16px each)
-// Grid layout (row-major):
-// Row 0 (idx 0-7):  Stone floor/wall variants
-// Row 1 (idx 8-15): Dark stone walls/floors
-// Row 2 (idx 16-23): Mixed stone tiles
-// Row 3 (idx 24-31): Darker stone, some transparent
-// Row 4 (idx 32-39): Green swamp/water floors
-// Row 5 (idx 40-47): More water tiles
-// Row 6 (idx 48-55): Water edges
+//
+// Grid layout:
+// Row 0 (0-7):  Lighter stone — best for FLOOR
+// Row 1 (8-15): Gray brick — best for WALL
+// Row 2 (16-23): Medium gray — WALL variants
+// Row 3 (24-31): Darker stone — DARK FLOOR / CORRIDOR
+// Row 4-6 (32-55): Green — WATER (not used in basic dungeon)
 
 export const TILE = Object.freeze({
-  // Stone floor tiles (brownish-gray)
-  FLOOR_STONE_A: 0,
-  FLOOR_STONE_B: 1,
-  FLOOR_STONE_C: 2,
-  FLOOR_STONE_D: 3,
-  FLOOR_GREY_A: 4,
-  FLOOR_GREY_B: 5,
+  // --- FLOOR tiles (lighter, smoothest gray) ---
+  FLOOR_A: 0,    // light warm gray
+  FLOOR_B: 1,    // mid gray
+  FLOOR_C: 2,    // light gray
+  FLOOR_D: 3,    // warm gray
+  FLOOR_E: 4,    // light cool gray
+  FLOOR_F: 5,    // warm gray
   
-  // Wall tiles (stone bricks)
-  WALL_A: 6,
-  WALL_B: 7,
-  WALL_C: 8,
-  WALL_D: 9,
-  WALL_E: 10,
-  WALL_F: 11,
-  WALL_G: 12,
-  WALL_H: 13,
-  WALL_I: 14,
-  WALL_J: 15,
-  WALL_K: 16,
-  WALL_L: 17,
-  WALL_M: 18,
+  // --- WALL tiles (darker, more texture) ---
+  WALL_A: 6,     // blue-gray brick
+  WALL_B: 7,     // light blue-gray
+  WALL_C: 8,     // dark gray brick
+  WALL_D: 9,     // very dark
+  WALL_E: 10,    // medium gray
+  WALL_F: 11,    // dark warm
+  WALL_G: 12,    // medium gray brick
+  WALL_H: 13,    // dark gray
+  WALL_I: 14,    // blue-gray
+  WALL_J: 15,    // warm dark
+  WALL_K: 16,    // medium
+  WALL_L: 17,    // light warm
+  WALL_M: 18,    // medium warm
   
-  // Darker walls
-  WALL_DARK_A: 19,
-  WALL_DARK_B: 20,
-  WALL_DARK_C: 21,
-  WALL_DARK_D: 22,
-  
-  // Dark floor variants
-  FLOOR_DARK_A: 24,
-  FLOOR_DARK_B: 25,
-  FLOOR_DARK_C: 26,
-  FLOOR_DARK_D: 27,
-  FLOOR_DARK_E: 28,
-  FLOOR_DARK_F: 29,
-  
-  // Water/swamp tiles (green)
-  WATER_A: 32,
-  WATER_B: 33,
-  WATER_C: 34,
-  WATER_D: 35,
-  WATER_E: 40,
-  WATER_F: 41,
-  WATER_G: 42,
-  WATER_H: 43,
-  WATER_I: 48,
-  WATER_J: 49,
-  WATER_K: 50,
+  // --- DARK WALL (dungeon back walls) ---
+  WALL_DARK_A: 19,  // dark brown-gray
+  WALL_DARK_B: 20,  // medium
+  WALL_DARK_C: 21,  // very dark
+  WALL_DARK_D: 22,  // dark
+  WALL_DARK_E: 24,  // warm dark
+  WALL_DARK_F: 25,  // warm gray
+  WALL_DARK_G: 26,  // dark
+  WALL_DARK_H: 27,  // dark
+  WALL_DARK_I: 28,  // dark warm
+  WALL_DARK_J: 29,  // very dark warm
 });
 
 // Dungeon rendering tile assignments
 export const DUNGEON_TILE_MAP = {
-  wall: [TILE.WALL_A, TILE.WALL_B, TILE.WALL_C, TILE.WALL_GREY_A],
-  floor: [TILE.FLOOR_STONE_A, TILE.FLOOR_STONE_B, TILE.FLOOR_STONE_C],
-  door: [TILE.WALL_D, TILE.WALL_E],
-  corridor: [TILE.FLOOR_DARK_A],
+  // Use distinctly different tilesets for wall vs floor
+  wall: [TILE.WALL_C, TILE.WALL_D, TILE.WALL_E, TILE.WALL_F, TILE.WALL_G, TILE.WALL_H],
+  floor: [TILE.FLOOR_A, TILE.FLOOR_B, TILE.FLOOR_C, TILE.FLOOR_D],
+  door: [TILE.WALL_I, TILE.WALL_J],
+  corridor: [TILE.WALL_A, TILE.WALL_B],
 };
 
-// Item tiles for room decorations (using stone floor variants as props)
+// Item tiles
 export const ITEM_PLACEMENTS = {
-  chest: [TILE.FLOOR_STONE_D, TILE.FLOOR_GREY_A],
-  potion: [TILE.FLOOR_GREY_B, TILE.WALL_M],
-  weapon: [TILE.WALL_G, TILE.WALL_H],
-  barrel: [TILE.WALL_I],
-  torch: [TILE.WALL_L],
+  chest: [TILE.FLOOR_E, TILE.FLOOR_F],
+  potion: [TILE.WALL_M, TILE.WALL_K],
+  weapon: [TILE.FLOOR_C, TILE.FLOOR_D],
+  barrel: [TILE.WALL_L],
+  torch: [TILE.FLOOR_B],
 };
