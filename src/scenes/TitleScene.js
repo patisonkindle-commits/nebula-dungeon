@@ -24,7 +24,7 @@ export default class TitleScene extends Phaser.Scene {
       stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    this.add.text(CONFIG.WIDTH / 2, 250, 'Idle Roguelike RPG', {
+    this.add.text(CONFIG.WIDTH / 2, 250, 'Nebula Edition v2', {
       fontSize: '12px', color: '#8899aa', fontFamily: 'monospace',
     }).setOrigin(0.5);
     
