@@ -17,10 +17,19 @@ export class Hero extends Phaser.GameObjects.Sprite {
         this.invulnerableTimer = 3.0;
         this.setAlpha(0.4);
         this.moveTarget = null;
+        this.waypoints = null;
+        this.waypointIdx = 0;
         
-        // Start idle animation
         this.play('wizard_walk');
         this.scene = scene;
+    }
+
+    setWaypoints(wps) {
+        this.waypoints = wps;
+        this.waypointIdx = 0;
+        if (wps && wps.length > 0) {
+            this.moveTarget = wps[0];
+        }
     }
 
     update(dt) {
@@ -42,12 +51,20 @@ export class Hero extends Phaser.GameObjects.Sprite {
                 this.x = this.heroX;
                 this.y = this.heroY;
             } else {
-                this.moveTarget = null;
+                // Reached current waypoint — go to next
+                if (this.waypoints && this.waypointIdx < this.waypoints.length - 1) {
+                    this.waypointIdx++;
+                    this.moveTarget = this.waypoints[this.waypointIdx];
+                } else {
+                    this.moveTarget = null;
+                    this.waypoints = null;
+                }
             }
         }
     }
 
     setMoveTarget(x, y) {
+        this.waypoints = null;
         this.moveTarget = { x, y };
     }
 

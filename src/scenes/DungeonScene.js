@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../config.js';
 import { DungeonGenerator } from '../dungeon/Generator.js';
+import { Pathfinder } from '../dungeon/Pathfinder.js';
 import { Hero } from '../entities/Hero.js';
 import { Enemy, getEnemyTypeForDepth } from '../entities/Enemy.js';
 import { CombatSystem } from '../systems/Combat.js';
@@ -26,6 +27,9 @@ export default class DungeonScene extends Phaser.Scene {
     this.grid = this.dungeon.grid;
     this.rooms = this.dungeon.rooms;
     this.combat = new CombatSystem(this);
+    
+    // Pathfinder for room-to-room navigation
+    this.pathfinder = new Pathfinder(this.grid);
     
     const RT = CONFIG.RENDER_TILE;
     const SC = CONFIG.TILE_SCALE;
@@ -108,8 +112,32 @@ export default class DungeonScene extends Phaser.Scene {
       return;
     }
     this.roomIdx = idx;
-    const r = this.rooms[idx];
-    this.hero.setMoveTarget((r.x + r.w/2) * CONFIG.RENDER_TILE, (r.y + r.h/2) * CONFIG.RENDER_TILE);
+    const room = this.rooms[idx];
+    const RT = CONFIG.RENDER_TILE;
+    
+    // Find pixel path using pathfinder
+    const heroGX = Math.round(this.hero.x / RT);
+    const heroGY = Math.round(this.hero.y / RT);
+    const targetGX = room.x + Math.floor(room.w / 2);
+    const targetGY = room.y + Math.floor(room.h / 2);
+    
+    const gridPath = this.pathfinder.findPath(heroGX, heroGY, targetGX, targetGY);
+    
+    if (gridPath && gridPath.length > 1) {
+      // Skip first node (current position), convert rest to pixel waypoints
+      const waypoints = gridPath.slice(1).map(p => ({
+        x: p.x * RT + RT / 2,
+        y: p.y * RT + RT / 2
+      }));
+      this.hero.setWaypoints(waypoints);
+    } else {
+      // Fallback: direct target
+      this.hero.setMoveTarget(
+        (room.x + room.w/2) * RT,
+        (room.y + room.h/2) * RT
+      );
+    }
+    
     this.mode = 'walk';
     this.statusText.setText(`➡ Room ${idx+1}`);
   }
