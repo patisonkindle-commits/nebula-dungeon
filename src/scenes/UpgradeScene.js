@@ -1,4 +1,4 @@
-// Upgrade / Meta-progression scene — spent gold between runs
+// Upgrade / Meta-progression scene — premium styling
 
 import Phaser from 'phaser';
 import { CONFIG, COLORS } from '../config.js';
@@ -24,92 +24,81 @@ export default class UpgradeScene extends Phaser.Scene {
     this.totalGold = data?.totalGold || 0;
     this.upgrades = data?.upgrades || {};
     this.heroLevel = data?.heroLevel || 1;
-    
-    // Ensure all upgrade keys exist
-    for (const u of UPGRADES) {
-      if (this.upgrades[u.id] === undefined) this.upgrades[u.id] = 0;
-    }
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(0x0a0a1a);
+    this.cameras.main.setBackgroundColor(0x0a0c1a);
     
-    // Title
-    this.add.text(CONFIG.WIDTH / 2, 30, 'CAMP — UPGRADES', {
-      fontSize: '16px', color: COLORS.TEXT_BLUE, fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 3,
+    this.add.text(CONFIG.WIDTH / 2, 40, 'CAMP — UPGRADES', {
+      fontSize: '22px', color: '#88bbff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(10);
     
-    // Gold display
-    this.add.text(CONFIG.WIDTH / 2, 50, `✦ ${this.heroGold} Gold`, {
-      fontSize: '12px', color: COLORS.TEXT_GOLD, fontFamily: 'monospace',
+    this.add.text(CONFIG.WIDTH / 2, 70, `✦ ${this.heroGold}`, {
+      fontSize: '16px', color: '#ffd700', fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(10);
     
-    // Depth info
-    this.add.text(CONFIG.WIDTH / 2, 65, `Floor ${this.currentDepth} reached | Hero Lv.${this.heroLevel}`, {
-      fontSize: '9px', color: COLORS.TEXT_DIM, fontFamily: 'monospace',
+    this.add.text(CONFIG.WIDTH / 2, 90, `Floor ${this.currentDepth} reached | Hero Lv.${this.heroLevel}`, {
+      fontSize: '10px', color: '#8899aa', fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 1,
     }).setOrigin(0.5).setDepth(10);
     
-    // Upgrade buttons
-    this.upgradeButtons = [];
     this.createUpgradeList();
-    
-    // Descend button
     this.createDescendButton();
-    
-    // Store gold for button updates
-    this.goldTextHUD = this.children.list.find(c => c.type === 'Text' && c.text.includes('Gold'));
   }
 
   createUpgradeList() {
-    const startY = 90;
-    const itemH = 55;
+    const startY = 130;
+    const itemH = 70;
     
     for (let i = 0; i < UPGRADES.length; i++) {
       const u = UPGRADES[i];
-      const rank = this.upgrades[u.id];
+      const rank = this.upgrades[u.id] || 0;
       const cost = Math.floor(u.baseCost * Math.pow(u.costMult, rank));
       const maxed = rank >= u.maxRank;
       
       const y = startY + i * itemH;
       
-      // Background
       const bg = this.add.graphics();
-      bg.fillStyle(0x111122, 0.8);
-      bg.fillRoundedRect(10, y, CONFIG.WIDTH - 20, itemH - 4, 4);
-      bg.lineStyle(1, 0x334466, 0.5);
-      bg.strokeRoundedRect(10, y, CONFIG.WIDTH - 20, itemH - 4, 4);
+      bg.fillStyle(0x1a2a3a, 0.9);
+      bg.fillRoundedRect(20, y, CONFIG.WIDTH - 40, itemH - 10, 8);
+      bg.lineStyle(2, 0x4a9eff, 0.6);
+      bg.strokeRoundedRect(20, y, CONFIG.WIDTH - 40, itemH - 10, 8);
       
-      // Upgrade name + rank
-      this.add.text(18, y + 5, `${u.name} (${rank}/${u.maxRank})`, {
-        fontSize: '10px', color: COLORS.TEXT_WHITE, fontFamily: 'monospace',
+      this.add.text(30, y + 10, `${u.name} (${rank}/${u.maxRank})`, {
+        fontSize: '12px', color: '#ffffff', fontFamily: 'monospace',
       });
       
-      // Description
-      this.add.text(18, y + 20, u.desc, {
-        fontSize: '8px', color: COLORS.TEXT_DIM, fontFamily: 'monospace',
+      this.add.text(30, y + 30, u.desc, {
+        fontSize: '9px', color: '#8899aa', fontFamily: 'monospace',
       });
       
       if (!maxed) {
-        // Cost + Buy button
         const canAfford = this.heroGold >= cost;
-        const btnText = this.add.text(CONFIG.WIDTH - 20, y + 12, 
+        const btnText = this.add.text(CONFIG.WIDTH - 30, y + 20, 
           canAfford ? `✦ ${cost} BUY` : `✦ ${cost}`, {
-          fontSize: '10px', color: canAfford ? COLORS.TEXT_GOLD : '#555555', 
-          fontFamily: 'monospace',
-        }).setOrigin(1, 0.5);
+            fontSize: '12px', color: canAfford ? '#ffd700' : '#555555', 
+            fontFamily: 'monospace',
+          }).setOrigin(1, 0.5);
         
         if (canAfford) {
           btnText.setInteractive({ useHandCursor: true });
-          btnText.on('pointerover', () => btnText.setColor('#ffdd88'));
-          btnText.on('pointerout', () => btnText.setColor(COLORS.TEXT_GOLD));
+          btnText.on('pointerover', () => {
+            btnText.setColor('#ffdd88');
+            bg.fillStyle(0x224466, 1);
+            bg.fillRoundedRect(20, y, CONFIG.WIDTH - 40, itemH - 10, 8);
+          });
+          btnText.on('pointerout', () => {
+            btnText.setColor('#ffd700');
+            bg.fillStyle(0x1a2a3a, 0.9);
+            bg.fillRoundedRect(20, y, CONFIG.WIDTH - 40, itemH - 10, 8);
+          });
           btnText.on('pointerdown', () => this.buyUpgrade(u.id, cost));
         }
       } else {
-        this.add.text(CONFIG.WIDTH - 20, y + 12, 'MAXED', {
-          fontSize: '10px', color: '#44ff88', fontFamily: 'monospace',
+        this.add.text(CONFIG.WIDTH - 30, y + 20, 'MAXED', {
+          fontSize: '12px', color: '#44ff88', fontFamily: 'monospace',
         }).setOrigin(1, 0.5);
       }
     }
@@ -117,11 +106,8 @@ export default class UpgradeScene extends Phaser.Scene {
 
   buyUpgrade(id, cost) {
     if (this.heroGold < cost) return;
-    
     this.heroGold -= cost;
     this.upgrades[id] = (this.upgrades[id] || 0) + 1;
-    
-    // Rebuild scene
     this.scene.restart({
       depth: this.currentDepth,
       gold: this.heroGold,
@@ -133,35 +119,25 @@ export default class UpgradeScene extends Phaser.Scene {
 
   createDescendButton() {
     const y = CONFIG.HEIGHT - 80;
-    
-    // Big "Descend" button
     const bg = this.add.graphics();
-    bg.fillStyle(0x224466, 0.9);
-    bg.fillRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
-    bg.lineStyle(2, COLORS.UI_ACCENT, 0.8);
-    bg.strokeRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
+    bg.fillStyle(0x224466, 1);
+    bg.fillRoundedRect(60, y, CONFIG.WIDTH - 120, 50, 10);
+    bg.lineStyle(3, 0x4a9eff, 1);
+    bg.strokeRoundedRect(60, y, CONFIG.WIDTH - 120, 50, 10);
     
-    const txt = this.add.text(CONFIG.WIDTH / 2, y + 22, '▶ DESCEND TO FLOOR ' + (this.currentDepth + 1), {
-      fontSize: '13px', color: COLORS.TEXT_BLUE, fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 2,
+    const txt = this.add.text(CONFIG.WIDTH / 2, y + 25, `▶ DESCEND TO FLOOR ${this.currentDepth + 1}`, {
+      fontSize: '16px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5);
     
     txt.setInteractive({ useHandCursor: true });
     txt.on('pointerover', () => {
       txt.setColor('#88bbff');
-      bg.clear();
-      bg.fillStyle(0x335577, 0.9);
-      bg.fillRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
-      bg.lineStyle(2, 0x88bbff, 0.8);
-      bg.strokeRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
+      bg.fillStyle(0x335577, 1);
     });
     txt.on('pointerout', () => {
-      txt.setColor(COLORS.TEXT_BLUE);
-      bg.clear();
-      bg.fillStyle(0x224466, 0.9);
-      bg.fillRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
-      bg.lineStyle(2, COLORS.UI_ACCENT, 0.8);
-      bg.strokeRoundedRect(60, y, CONFIG.WIDTH - 120, 44, 8);
+      txt.setColor('#ffffff');
+      bg.fillStyle(0x224466, 1);
     });
     txt.on('pointerdown', () => {
       this.scene.start('dungeon', {

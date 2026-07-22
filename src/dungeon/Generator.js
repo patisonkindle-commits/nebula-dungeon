@@ -9,7 +9,6 @@ export class DungeonGenerator {
 
   // Generate a floor: returns { grid, rooms, entrance, exit }
   generate(seed = Date.now()) {
-    // Simple seeded RNG
     let _seed = seed;
     const rng = () => {
       _seed = (_seed * 16807 + 0) % 2147483647;
@@ -133,6 +132,29 @@ export class DungeonGenerator {
     
     // Mark boss room
     rooms[lastIdx].isBoss = true;
+    
+    // INJECT DECORATION PROPS
+    // We will pick a few random "premium" props from the DebtsInTheDepthsAssets folder
+    // These will be placed in every room that isn't a boss room.
+    const decor_props = ['sprGoldVein', 'sprRock', 'sprLava', 'sprWater'];
+    
+    for (let i = 0; i < rooms.length; i++) {
+      const room = rooms[i];
+      if (room.isBoss) continue;
+      
+      const count = 1 + Math.floor(Math.random() * 3);
+      for (let d = 0; d < count; d++) {
+        const dx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+        const dy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+        
+        if (grid[dy] && grid[dy][dx] === 0) {
+          const prop = decor_props[Math.floor(Math.random() * decor_props.length)];
+          // We store this as a custom property for the scene to render
+          room.props = room.props || [];
+          room.props.push({ x: dx, y: dy, type: prop });
+        }
+      }
+    }
     
     return { grid, rooms, entrance, exit, gridW, gridH };
   }
