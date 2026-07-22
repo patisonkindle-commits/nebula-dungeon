@@ -42,7 +42,7 @@ export default class DungeonScene extends Phaser.Scene {
     this.hero.gold = this.heroGold;
     
     this.cameras.main.setBounds(0, 0, this.worldW, this.worldH);
-    this.cameras.main.startFollow(this.hero.sprite, true, 0.1, 0.1);
+    this.cameras.main.startFollow(this.hero, true, 0.1, 0.1);
     this.cameras.main.setZoom(1);
     this.cameras.main.roundPixels = true;
     

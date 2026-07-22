@@ -1,14 +1,12 @@
-export class Enemy {
+export class Enemy extends Phaser.GameObjects.Sprite {
     constructor(scene, x, y, type = 'skeleton') {
-        this.scene = scene;
-        
         const textureKey = type === 'orc' ? 'orc_archer' : 'skeleton';
-        this.sprite = scene.add.image(x, y, textureKey);
-        this.sprite.setScale(2);
-        this.sprite.setDepth(10);
+        super(scene, x, y, textureKey);
+        scene.add.existing(this);
+        
+        this.setScale(3);
+        this.setDepth(10);
 
-        this.x = x;
-        this.y = y;
         this.homeX = x;
         this.homeY = y;
         this.type = type;
@@ -19,24 +17,19 @@ export class Enemy {
         this.attackRange = type === 'orc' ? 200 : 50;
         this.attackCooldown = type === 'orc' ? 2.5 : 1.5;
         this.lastAttackTime = 0;
-        this.aggroRange = 120; // How far they chase
-        this.leashRange = 200; // Max chase distance from home
-        this.speed = type === 'orc' ? 20 : 25; // Slow chase speed
-    }
-
-    refreshSprite() {
-        this.sprite.x = this.x;
-        this.sprite.y = this.y;
+        this.aggroRange = 120;
+        this.leashRange = 200;
+        this.speed = type === 'orc' ? 20 : 25;
+        
+        // Start walk animation
+        this.play(type === 'orc' ? 'orc_archer_walk' : 'skeleton_walk');
     }
 
     update(dt, hero) {
-        if (!hero || !hero.alive) {
-            this.refreshSprite();
-            return;
-        }
+        if (!hero || !hero.alive) return;
 
-        const dx = hero.x - this.x;
-        const dy = hero.y - this.y;
+        const dx = hero.heroX - this.x;
+        const dy = hero.heroY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
         const distFromHome = Math.sqrt(
@@ -44,48 +37,38 @@ export class Enemy {
             (this.y - this.homeY) ** 2
         );
 
-        // If hero enters aggro range and we haven't exceeded leash
         if (dist < this.aggroRange && distFromHome < this.leashRange) {
-            // Move towards hero slowly
             if (dist > this.attackRange) {
                 this.x += (dx / dist) * this.speed * dt;
                 this.y += (dy / dist) * this.speed * dt;
             }
         } else if (distFromHome > 5) {
-            // Return home
             const hdx = this.homeX - this.x;
             const hdy = this.homeY - this.y;
             const hDist = Math.sqrt(hdx * hdx + hdy * hdy);
             this.x += (hdx / hDist) * this.speed * 1.5 * dt;
             this.y += (hdy / hDist) * this.speed * 1.5 * dt;
         }
-
-        this.refreshSprite();
     }
 
     canAttack(hero) {
-        const dx = hero.x - this.x;
-        const dy = hero.y - this.y;
+        const dx = hero.heroX - this.x;
+        const dy = hero.heroY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         return dist < this.attackRange;
     }
 
     takeDamage(amount) {
         this.hp -= amount;
-        // Flash red on hit
-        this.sprite.setTint(0xff4444);
+        this.setTint(0xff4444);
         this.scene.time.delayedCall(80, () => {
-            if (this.sprite && this.alive) this.sprite.clearTint();
+            if (this.alive) this.clearTint();
         });
         if (this.hp <= 0) {
             this.hp = 0;
             this.alive = false;
         }
         return { killed: !this.alive, exp: 15, gold: 5 + Math.floor(Math.random() * 10) };
-    }
-
-    destroy() {
-        if (this.sprite) this.sprite.destroy();
     }
 }
 

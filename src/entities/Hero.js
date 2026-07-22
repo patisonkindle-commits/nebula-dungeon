@@ -1,12 +1,13 @@
-export class Hero {
+export class Hero extends Phaser.GameObjects.Sprite {
     constructor(scene, x, y) {
-        this.scene = scene;
-        this.sprite = scene.add.image(x, y, 'wizard');
-        this.sprite.setScale(3);
-        this.sprite.setDepth(10);
+        super(scene, x, y, 'wizard');
+        scene.add.existing(this);
+        
+        this.setScale(3);
+        this.setDepth(10);
 
-        this.x = x;
-        this.y = y;
+        this.heroX = x;
+        this.heroY = y;
         this.speed = 120;
         this.hp = 2000;
         this.maxHp = 2000;
@@ -14,50 +15,35 @@ export class Hero {
         this.alive = true;
         
         this.invulnerableTimer = 3.0;
-        this.sprite.setAlpha(0.4);
+        this.setAlpha(0.4);
         this.moveTarget = null;
         
-        // Floating idle animation
-        this.idleTween = scene.tweens.add({
-            targets: this.sprite,
-            y: y - 4,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
-        });
+        // Start idle animation
+        this.play('wizard_walk');
+        this.scene = scene;
     }
 
     update(dt) {
         if (this.invulnerableTimer > 0) {
             this.invulnerableTimer -= dt;
-            this.sprite.setAlpha(0.3 + Math.abs(Math.sin(this.invulnerableTimer * 8)) * 0.7);
+            this.setAlpha(0.3 + Math.abs(Math.sin(this.invulnerableTimer * 8)) * 0.7);
             if (this.invulnerableTimer <= 0) {
-                this.sprite.setAlpha(1);
+                this.setAlpha(1);
             }
         }
         
         if (this.moveTarget) {
-            const dx = this.moveTarget.x - this.x;
-            const dy = this.moveTarget.y - this.y;
+            const dx = this.moveTarget.x - this.heroX;
+            const dy = this.moveTarget.y - this.heroY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 8) {
-                // Pause idle bob while moving
-                this.idleTween.pause();
-                this.sprite.y = this.y; // reset y offset
-                
-                this.x += (dx / dist) * this.speed * dt;
-                this.y += (dy / dist) * this.speed * dt;
-                this.sprite.x = this.x;
-                this.sprite.y = this.y;
+                this.heroX += (dx / dist) * this.speed * dt;
+                this.heroY += (dy / dist) * this.speed * dt;
+                this.x = this.heroX;
+                this.y = this.heroY;
             } else {
                 this.moveTarget = null;
-                // Resume idle bob
-                this.idleTween.resume();
             }
-        } else {
-            // Ensure idle tween is running when stationary
-            if (this.idleTween.isPaused()) this.idleTween.resume();
         }
     }
 
@@ -76,15 +62,9 @@ export class Hero {
             this.hp = 0;
             this.alive = false;
         }
-        // Flash red on hit
-        this.sprite.setTint(0xff4444);
+        this.setTint(0xff4444);
         this.scene.time.delayedCall(100, () => {
-            if (this.sprite && this.alive) this.sprite.clearTint();
+            if (this.alive) this.clearTint();
         });
-    }
-
-    destroy() {
-        if (this.idleTween) this.idleTween.stop();
-        if (this.sprite) this.sprite.destroy();
     }
 }
