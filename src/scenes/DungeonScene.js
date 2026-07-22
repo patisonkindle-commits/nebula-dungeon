@@ -128,13 +128,13 @@ export default class DungeonScene extends Phaser.Scene {
     const ent = this.dungeon.entrance;
     this.entranceMarker = this.add.image(
       ent.x * RT + RT / 2, ent.y * RT + RT / 2,
-      'tiles', TILE.FLOOR_CIRCLE
+      'tiles', TILE.FLOOR_STONE_A
     ).setDepth(1).setScale(SC).setAlpha(0.6);
     
     const ext = this.dungeon.exit;
     this.exitMarker = this.add.image(
       ext.x * RT + RT / 2, ext.y * RT + RT / 2,
-      'tiles', TILE.FLOOR_DIAG_B
+      'tiles', TILE.WALL_DARK_C
     ).setDepth(1).setScale(SC).setAlpha(0.6);
   }
 
@@ -151,9 +151,9 @@ export default class DungeonScene extends Phaser.Scene {
       ...ITEM_PLACEMENTS.chest,
       ...ITEM_PLACEMENTS.barrel,
       ...ITEM_PLACEMENTS.potion,
-      TILE.TABLE_EMPTY_A,
-      TILE.CHAIR_WOOD,
-      TILE.FENCE_A,
+      TILE.FLOOR_GREY_A,
+      TILE.WALL_M,
+      TILE.FLOOR_DARK_F,
     ];
     
     for (let d = 0; d < count; d++) {
