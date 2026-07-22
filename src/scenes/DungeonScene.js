@@ -33,7 +33,6 @@ export default class DungeonScene extends Phaser.Scene {
     this.combat = new CombatSystem(this);
     
     // Scale camera to fit 480x800 view
-    // Our dungeon world is bigger, camera will follow hero
     this.worldW = this.dungeon.gridW * CONFIG.RENDER_TILE;
     this.worldH = this.dungeon.gridH * CONFIG.RENDER_TILE;
     
@@ -80,13 +79,11 @@ export default class DungeonScene extends Phaser.Scene {
     const RT = CONFIG.RENDER_TILE;
     const SC = CONFIG.TILE_SCALE;
     
-    // Pre-select tile variant arrays
     const walls = DUNGEON_TILE_MAP.wall;
     const floors = DUNGEON_TILE_MAP.floor;
     const doors = DUNGEON_TILE_MAP.door;
     const corridors = DUNGEON_TILE_MAP.corridor;
     
-    // Draw each cell using sprites from the Kenney tilesheet
     for (let y = 0; y < this.dungeon.gridH; y++) {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const cell = this.grid[y][x];
@@ -95,16 +92,12 @@ export default class DungeonScene extends Phaser.Scene {
         
         let tileIdx;
         if (cell === 1) {
-          // Wall — cycle through variants
           tileIdx = walls[(x + y) % walls.length];
         } else if (cell === 0) {
-          // Floor — checkerboard between two variants
           tileIdx = (x + y) % 2 === 0 ? floors[0] : floors[1 % floors.length];
         } else if (cell === 2) {
-          // Door
           tileIdx = doors[(x + y) % doors.length];
         } else if (cell === 3) {
-          // Corridor
           tileIdx = corridors[0];
         } else {
           continue;
@@ -117,13 +110,11 @@ export default class DungeonScene extends Phaser.Scene {
       }
     }
     
-    // Decorative items in rooms (chests, barrels, potions)
     for (let i = 0; i < this.rooms.length; i++) {
       const r = this.rooms[i];
       this.placeRoomDecorations(r);
     }
     
-    // Room labels overlay (boss room border etc.)
     this.roomLabels = this.add.graphics();
     this.roomLabels.setDepth(1);
     for (let i = 0; i < this.rooms.length; i++) {
@@ -134,28 +125,25 @@ export default class DungeonScene extends Phaser.Scene {
       }
     }
     
-    // Entrance marker
     const ent = this.dungeon.entrance;
     this.entranceMarker = this.add.image(
       ent.x * RT + RT / 2, ent.y * RT + RT / 2,
       'tiles', TILE.FLOOR_CIRCLE
     ).setDepth(1).setScale(SC).setAlpha(0.6);
     
-    // Exit marker
     const ext = this.dungeon.exit;
     this.exitMarker = this.add.image(
       ext.x * RT + RT / 2, ext.y * RT + RT / 2,
       'tiles', TILE.FLOOR_DIAG_B
     ).setDepth(1).setScale(SC).setAlpha(0.6);
   }
-  
+
   placeRoomDecorations(room) {
-    if (room.isBoss) return; // boss rooms stay spartan
+    if (room.isBoss) return;
     
     const RT = CONFIG.RENDER_TILE;
     const SC = CONFIG.TILE_SCALE;
     
-    // Place 1-3 decorative items in the room
     const count = 1 + Math.floor(Math.random() * 3);
     const placed = new Set();
     
@@ -174,7 +162,6 @@ export default class DungeonScene extends Phaser.Scene {
       const key = `${dx},${dy}`;
       if (placed.has(key)) continue;
       
-      // Don't place on walls/doors
       if (this.grid[dy] && this.grid[dy][dx] !== 0) continue;
       
       placed.add(key);
@@ -190,11 +177,8 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   spawnEnemies() {
-    // Spawn enemies in all rooms except entrance
     for (let i = 0; i < this.rooms.length; i++) {
       const room = this.rooms[i];
-      
-      // Entrance room has no enemies
       if (i === 0) continue;
       
       const count = room.isBoss ? 3 : 3 + Math.floor(Math.random() * 3);
@@ -222,9 +206,8 @@ export default class DungeonScene extends Phaser.Scene {
 
   navigateToRoom(roomIndex) {
     if (roomIndex >= this.rooms.length) {
-      // All rooms cleared! Go to exit
       this.pathfindTo(this.dungeon.exit.gridX, this.dungeon.exit.gridY);
-      this.currentTargetRoom = -1; // sentinel: at exit
+      this.currentTargetRoom = -1;
       return;
     }
     
@@ -250,32 +233,26 @@ export default class DungeonScene extends Phaser.Scene {
   createHUD() {
     this.hudContainer = this.add.container(0, 0).setDepth(100);
     
-    // Gold display (top left, fixed on screen)
     this.goldText = this.add.text(8, 8, '', {
       fontSize: '12px', color: COLORS.TEXT_GOLD, fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(101);
     
-    // Depth/floor display
     this.depthText = this.add.text(CONFIG.WIDTH / 2, 8, '', {
       fontSize: '11px', color: COLORS.TEXT_BLUE, fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(101);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     
-    // Hero HP display (top-right)
     this.hpText = this.add.text(CONFIG.WIDTH - 8, 8, '', {
       fontSize: '10px', color: COLORS.TEXT_WHITE, fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 3,
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(101);
     
-    // Mini-map (bottom-right corner)
     this.miniMapGfx = this.add.graphics().setScrollFactor(0).setDepth(150);
-    
-    // Status message
     this.statusText = this.add.text(CONFIG.WIDTH / 2, CONFIG.HEIGHT - 20, '', {
       fontSize: '9px', color: COLORS.TEXT_DIM, fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(101);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     this.statusText.setAlpha(0.7);
   }
 
@@ -284,13 +261,11 @@ export default class DungeonScene extends Phaser.Scene {
     this.depthText.setText(`Floor ${this.dungeonDepth}`);
     this.hpText.setText(`❤ ${this.hero.hp}/${this.hero.maxHp}`);
     
-    // Draw mini-map
     const mmScale = 3;
     const mmX = CONFIG.WIDTH - 60;
     const mmY = CONFIG.HEIGHT - 80;
     this.miniMapGfx.clear();
     
-    // Grid mini
     for (let y = 0; y < this.dungeon.gridH; y++) {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const cell = this.grid[y][x];
@@ -302,23 +277,13 @@ export default class DungeonScene extends Phaser.Scene {
       }
     }
     
-    // Hero dot
     this.miniMapGfx.fillStyle(0x4a9eff, 1);
-    this.miniMapGfx.fillCircle(
-      mmX + this.hero.gridPos.x * mmScale,
-      mmY + this.hero.gridPos.y * mmScale,
-      2
-    );
+    this.miniMapGfx.fillCircle(mmX + this.hero.gridPos.x * mmScale, mmY + this.hero.gridPos.y * mmScale, 2);
     
-    // Enemies dots
     for (const e of this.enemies) {
       if (!e.alive) continue;
       this.miniMapGfx.fillStyle(e.isBoss ? 0xff4444 : 0xff8844, 0.8);
-      this.miniMapGfx.fillCircle(
-        mmX + e.gridPos.x * mmScale,
-        mmY + e.gridPos.y * mmScale,
-        e.isBoss ? 2 : 1
-      );
+      this.miniMapGfx.fillCircle(mmX + e.gridPos.x * mmScale, mmY + e.gridPos.y * mmScale, e.isBoss ? 2 : 1);
     }
   }
 
@@ -326,31 +291,25 @@ export default class DungeonScene extends Phaser.Scene {
     const dt = delta / 1000;
     if (!this.hero || !this.hero.alive) return;
     
-    // Update hero
     this.hero.update(dt);
     
-    // Update enemies
     for (const enemy of this.enemies) {
       if (enemy.alive) {
         enemy.update(dt, this.hero);
       }
     }
     
-    // Combat
     this.combat.update(dt, this.hero, this.enemies);
     
-    // Check if current room cleared
     this.checkHeroTimer += dt;
-    if (this.checkHeroTimer > 1) { // check every 1s
+    if (this.checkHeroTimer > 1) {
       this.checkHeroTimer = 0;
       this.checkRoomProgress();
     }
     
-    // Check for hero death
     if (!this.hero.alive && !this.heroDeathHandled) {
       this.heroDeathHandled = true;
       this.statusText.setText('Hero has fallen...');
-      
       this.time.delayedCall(1500, () => {
         this.cleanUp();
         this.scene.start('gameover', {
@@ -361,14 +320,12 @@ export default class DungeonScene extends Phaser.Scene {
       });
     }
     
-    // Update HUD
     this.updateHUD();
   }
 
   checkRoomProgress() {
     const room = this.rooms[this.currentTargetRoom];
     if (!room) {
-      // At exit zone — check if hero is near the exit
       const dx = Math.abs(this.hero.gridPos.x - this.dungeon.exit.gridX);
       const dy = Math.abs(this.hero.gridPos.y - this.dungeon.exit.gridY);
       if (dx <= 1 && dy <= 1 && !this.hero.moving) {
@@ -377,37 +334,30 @@ export default class DungeonScene extends Phaser.Scene {
       return;
     }
     
-    // Check if hero is in the room
     const inRoom = this.hero.gridPos.x >= room.x && 
-                   this.hero.gridPos.x < room.x + room.w &&
-                   this.hero.gridPos.y >= room.y &&
-                   this.hero.gridPos.y < room.y + room.h;
+                    this.hero.gridPos.x < room.x + room.w &&
+                    this.hero.gridPos.y >= room.y &&
+                    this.hero.gridPos.y < room.y + room.h;
     
     if (inRoom) {
-      // Check if all enemies in this room are dead
       const liveEnemies = this.enemies.filter(e => e.alive);
       const roomEnemies = room.enemies.filter(e => e.alive);
       
       if (roomEnemies.length === 0) {
-        // Room cleared!
         if (!room.cleared) {
           room.cleared = true;
           this.onRoomCleared(room);
         }
-        
-        // Auto-navigate to next room
         if (this.hero.moving === false) {
           const nextRoom = this.currentTargetRoom + 1;
           if (nextRoom < this.rooms.length) {
             this.statusText.setText(`Moving to room ${nextRoom + 1}...`);
             this.navigateToRoom(nextRoom);
           } else {
-            // All rooms done, go to exit
             this.pathfindTo(this.dungeon.exit.gridX, this.dungeon.exit.gridY);
           }
         }
       } else {
-        // Hero is in room with enemies — wait for combat
         if (!room.cleared) {
           const alive = roomEnemies.length;
           this.statusText.setText(`Room ${this.currentTargetRoom + 1}: ${alive} enemy${alive > 1 ? 'ies' : 'y'} remaining`);
@@ -417,9 +367,8 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   onRoomCleared(room) {
-    // Visual feedback
     const cx = (room.x + room.w / 2) * CONFIG.RENDER_TILE;
-    const cy = (room.y + room.h / 2) * CONFIG.RENDER_TILE;
+    const cy = (room.y + room.h /2) * CONFIG.RENDER_TILE;
     
     const clearText = this.add.text(cx, cy, room.isBoss ? 'BOSS CLEARED!' : 'CLEARED!', {
       fontSize: '14px', color: room.isBoss ? '#ffd700' : '#44ff88', fontFamily: 'monospace',
@@ -434,19 +383,14 @@ export default class DungeonScene extends Phaser.Scene {
       onComplete: () => clearText.destroy()
     });
     
-    // Bonus gold for clearing room
     const bonus = room.isBoss ? 50 : 10 + Math.floor(Math.random() * 10);
     this.hero.gold += bonus;
     this.hero.totalGold += bonus;
-    
-    // Small heal
     this.hero.heal(5);
-    
     this.statusText.setText(room.isBoss ? 'Boss defeated! Moving on...' : 'Room cleared!');
   }
 
   onReachedExit() {
-    // Go to upgrade scene
     this.cleanUp();
     this.scene.start('upgrade', {
       depth: this.dungeonDepth,
@@ -464,8 +408,6 @@ export default class DungeonScene extends Phaser.Scene {
       e.destroy();
     }
     this.enemies = [];
-    
-    // Destroy tile sprites
     if (this.tileSprites) {
       this.tileSprites.forEach(s => { if (s) s.destroy(); });
       this.tileSprites = [];

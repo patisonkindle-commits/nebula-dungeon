@@ -1,6 +1,6 @@
 import { TILE_SIZE } from '../config/TileConfig.js';
 
-export default class Hero {
+export class Hero {
     constructor(scene, x, y) {
         this.scene = scene;
         // Use the high-quality Wizard spritesheet

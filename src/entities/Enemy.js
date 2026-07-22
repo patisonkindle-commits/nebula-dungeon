@@ -1,6 +1,6 @@
 import { TILE_SIZE } from '../config/TileConfig.js';
 
-export default class Enemy {
+export class Enemy {
     constructor(scene, x, y, type = 'skeleton') {
         this.scene = scene;
         
@@ -82,4 +82,14 @@ export default class Enemy {
             });
         }
     }
+}
+
+export function getEnemyTypeForDepth(depth) {
+    if (depth > 5) return 'orc';
+    return 'skeleton';
+}
+
+export function getBossForDepth(depth) {
+    if (depth % 5 === 0) return 'orc'; // Using Orc as a proxy for Boss logic for now
+    return 'skeleton';
 }
