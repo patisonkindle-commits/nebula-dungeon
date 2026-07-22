@@ -38,8 +38,8 @@ export default class DungeonScene extends Phaser.Scene {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const c = this.grid[y][x], px = x*RT, py = y*RT;
         if (c === 0) {
-          // Floor — solid color rectangle, no pattern
-          const r = this.add.rectangle(px+RT/2, py+RT/2, RT, RT, 0x2a3d55).setDepth(0);
+          // Floor — solid color with subtle grid lines
+          const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x2a3d55).setDepth(0).setStrokeStyle(1, 0x3a4d65, 0.4);
           this.tileSprites.push(r);
         } else if (c === 1) {
           // Wall — use tile with dim tint
@@ -51,8 +51,8 @@ export default class DungeonScene extends Phaser.Scene {
           const idx = DUNGEON_TILE_MAP.door[(x+y)%DUNGEON_TILE_MAP.door.length];
           this.tileSprites.push(this.add.image(px+RT/2, py+RT/2, 'tiles', idx).setDepth(0).setScale(SC));
         } else if (c === 3) {
-          // Corridor
-          const r = this.add.rectangle(px+RT/2, py+RT/2, RT, RT, 0x1a2a3a).setDepth(0);
+          // Corridor — solid with subtle grid
+          const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x1a2a3a).setDepth(0).setStrokeStyle(1, 0x2a3a4a, 0.3);
           this.tileSprites.push(r);
         }
       }
