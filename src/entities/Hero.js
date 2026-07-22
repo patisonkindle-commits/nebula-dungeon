@@ -2,24 +2,36 @@ export class Hero {
     constructor(scene, x, y) {
         this.scene = scene;
         this.sprite = scene.add.image(x, y, 'wizard');
-        this.sprite.setScale(1.5);
+        this.sprite.setScale(2);
         this.sprite.setDepth(10);
 
         this.x = x;
         this.y = y;
-        this.speed = 120;
-        this.hp = 100;
-        this.maxHp = 100;
+        this.speed = 80;
+        this.hp = 500;
+        this.maxHp = 500;
         this.gold = 0;
         this.alive = true;
         this.isMoving = false;
         this.moveDirection = { x: 0, y: 0 };
+        
+        // Invulnerability at start
+        this.invulnerableTimer = 3.0;
+        this.sprite.setAlpha(0.5);
     }
 
-    update() {
+    update(dt) {
+        if (this.invulnerableTimer > 0) {
+            this.invulnerableTimer -= dt;
+            if (this.invulnerableTimer <= 0) {
+                this.sprite.setAlpha(1);
+            }
+        }
         if (this.isMoving) {
-            this.sprite.x += this.moveDirection.x * this.speed;
-            this.sprite.y += this.moveDirection.y * this.speed;
+            this.sprite.x += this.moveDirection.x * this.speed * dt;
+            this.sprite.y += this.moveDirection.y * this.speed * dt;
+            this.x = this.sprite.x;
+            this.y = this.sprite.y;
         }
     }
 
@@ -34,6 +46,7 @@ export class Hero {
     }
 
     takeDamage(amount) {
+        if (this.invulnerableTimer > 0) return; // No damage during grace period
         this.hp -= amount;
         if (this.hp <= 0) {
             this.hp = 0;
