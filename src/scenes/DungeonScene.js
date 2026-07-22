@@ -39,7 +39,7 @@ export default class DungeonScene extends Phaser.Scene {
         const c = this.grid[y][x], px = x*RT, py = y*RT;
         if (c === 0) {
           // Floor — solid color with subtle grid lines
-          const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x2a3d55).setDepth(0).setStrokeStyle(1, 0x3a4d65, 0.4);
+          const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x2a3d55).setDepth(0).setStrokeStyle(1, 0x556677, 0.6);
           this.tileSprites.push(r);
         } else if (c === 1) {
           // Wall — use tile with dim tint
