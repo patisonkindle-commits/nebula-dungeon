@@ -193,20 +193,22 @@ export default class DungeonScene extends Phaser.Scene {
       if (alive === 0) {
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
-        this.mode = 'idle';
         
         // Check if this is the last room of current row
         const row = Math.floor(roomIdx / this.roomsX);
-        const nextRoomInRow = roomIdx + 1;
+        const isLastRoomInRow = (roomIdx + 1) % this.roomsX === 0;
         
-        // If next room in row exists, walk to it
-        if (nextRoomInRow < this.roomSequence.length) {
-          this.time.delayedCall(500, () => this.warpToRoom(nextRoomInRow + 1));
-        } 
-        // Otherwise, this is the last room of this row, warp to first room of next row
-        else {
-          const nextRowStart = (row + 1) * this.roomsX;
-          this.time.delayedCall(500, () => this.warpToRoom(nextRowStart + 1));
+        if (isLastRoomInRow && roomIdx + 1 < this.rooms.length) {
+          // Last room of row → warp to first room of next row
+          this.time.delayedCall(500, () => {
+            const nextRowStart = roomIdx + 1;
+            this.warpToRoom(nextRowStart + 1);
+          });
+        } else if (roomIdx + 1 < this.rooms.length) {
+          // Not last room of row → walk to next room (normal)
+          this.time.delayedCall(500, () => {
+            this.walkToRoom(roomIdx + 1);
+          });
         }
       } else {
         this.statusText.setText(`⚔ ${alive} enemy${alive > 1 ? 'ies' : ''}`);
