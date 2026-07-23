@@ -201,8 +201,7 @@ export default class DungeonScene extends Phaser.Scene {
         if (isLastRoomInRow && roomIdx + 1 < this.rooms.length) {
           // Last room of row → warp to first room of next row
           this.time.delayedCall(500, () => {
-            const nextRowStart = roomIdx + 1;
-            this.warpToRoom(nextRowStart + 1);
+            this.warpToRoom(roomIdx + 1);
           });
         } else if (roomIdx + 1 < this.rooms.length) {
           // Not last room of row → walk to next room (normal)
