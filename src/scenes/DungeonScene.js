@@ -147,30 +147,22 @@ export default class DungeonScene extends Phaser.Scene {
     const duration = 500;
     const startTime = this.time.now;
     
-    for (let i = 0; i < 15; i++) {
-      const particle = this.add.particle({
-        x: startX,
-        y: startY,
-        speed: { x: (endX - startX) / duration, y: (endY - startY) / duration },
-        life: duration,
-        speedY: { x: 0, y: 0 },
-        alpha: 1,
-        scale: 0.5,
-        emissiveColor: 0x4488ff,
-        color: 0x4488ff,
-        size: 3,
-        speed: 100,
-        emitPosition: 'center',
-        emitParticleTexture: 'white',
-        maxParticles: 0,
-        frame: 'white',
-        texture: 'white'
-      });
-      this.warpParticles.push(particle);
-    }
+    // Simple particle effect using emitter
+    const emitter = this.add.particles(0, 0, 'white', {
+      speed: { x: (endX - startX) / duration, y: (endY - startY) / duration },
+      lifespan: duration,
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      quantity: 15,
+      emitY: startY,
+      emitX: startX,
+      tint: 0x4488ff
+    });
+    
+    this.warpParticles.push(emitter);
     
     this.time.delayedCall(duration, () => {
-      this.warpParticles.forEach(p => p.destroy());
+      emitter.destroy();
       this.warpParticles = [];
     });
   }
@@ -230,14 +222,18 @@ export default class DungeonScene extends Phaser.Scene {
       });
     }
     
-    this.goldText.setText(`✦ ${this.hero.gold}`);
-    this.depthText.setText(`Floor ${this.depth}`);
-    this.hpText.setText(`❤ ${this.hero.hp}/${this.hero.maxHp}`);
+    this.goldText?.setText(`✦ ${this.hero.gold}`);
+    this.depthText?.setText(`Floor ${this.depth}`);
+    this.hpText?.setText(`❤ ${this.hero.hp}/${this.hero.maxHp}`);
   }
 
   cleanUp() {
     this.combat?.destroy(); this.hero?.destroy();
     this.enemies?.forEach(e => e.destroy());
     this.tileSprites?.forEach(s => s?.destroy());
+    this.goldText?.destroy();
+    this.depthText?.destroy();
+    this.hpText?.destroy();
+    this.statusText?.destroy();
   }
 }
