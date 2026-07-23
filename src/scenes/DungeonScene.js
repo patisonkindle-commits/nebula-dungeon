@@ -158,31 +158,16 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   /**
-   * Walk hero to the next room (same row) — walks through corridor for natural look
+   * Walk hero to the next room (same row) — purely horizontal movement
    */
   walkToRoom(step) {
     const roomIdx = this.roomSequence[step - 1];
     const room = this.rooms[roomIdx];
     const RT = CONFIG.RENDER_TILE;
     const targetGX = room.x + Math.floor(room.w * 0.3);
-    const targetGY = room.y + Math.floor(room.h * 0.5);
-    const targetY = targetGY * RT;
     
-    // Use hero's current Y to guarantee zero vertical movement between rooms
-    const cy = this.hero.heroY;
-    
-    // Build waypoints: walk right through corridor, then into target room
-    const currRoomIdx = this.getCurrentRoomIdx();
-    const currRoom = this.rooms[currRoomIdx];
-    
-    // 1) Right edge of current room → 2) Left edge of target room → 3) Target entrance
-    const waypoints = [
-      { x: (currRoom.x + currRoom.w) * RT, y: cy },
-      { x: room.x * RT,                      y: cy },
-      { x: targetGX * RT,                    y: targetY },
-    ];
-    
-    this.hero.setWaypoints(waypoints);
+    // Use hero's current Y to guarantee zero vertical drift
+    this.hero.setMoveTarget(targetGX * RT, this.hero.heroY);
     this.currentRoomIdx = roomIdx;
     this.mode = 'walk';
     this.statusText.setText(`➡ Room ${step}`);
