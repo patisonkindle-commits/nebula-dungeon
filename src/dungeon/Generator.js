@@ -114,7 +114,7 @@ export class DungeonGenerator {
       }
     }
     
-    // Set entrance = center of first room, exit = center of last room
+    // Set entrance = center of first room
     const entrance = {
       x: rooms[0].x + Math.floor(RW / 2),
       y: rooms[0].y + Math.floor(RH / 2),
@@ -122,16 +122,19 @@ export class DungeonGenerator {
       gridY: rooms[0].y + Math.floor(RH / 2),
     };
     
-    const lastIdx = rooms.length - 1;
-    const exit = {
-      x: rooms[lastIdx].x + Math.floor(RW / 2),
-      y: rooms[lastIdx].y + Math.floor(RH / 2),
-      gridX: rooms[lastIdx].x + Math.floor(RW / 2),
-      gridY: rooms[lastIdx].y + Math.floor(RH / 2),
-    };
+    // Boss = last room in snake (serpentine) traversal order
+    const lastRow = this.roomsY - 1;
+    const bossCol = lastRow % 2 === 0 ? (this.roomsX - 1) : 0;
+    const bossIdx = lastRow * this.roomsX + bossCol;
+    rooms[bossIdx].isBoss = true;
     
-    // Mark boss room
-    rooms[lastIdx].isBoss = true;
+    // Exit in boss room
+    const exit = {
+      x: rooms[bossIdx].x + Math.floor(RW / 2),
+      y: rooms[bossIdx].y + Math.floor(RH / 2),
+      gridX: rooms[bossIdx].x + Math.floor(RW / 2),
+      gridY: rooms[bossIdx].y + Math.floor(RH / 2),
+    };
     
     // INJECT DECORATION PROPS
     // We will pick a few random "premium" props from the DebtsInTheDepthsAssets folder
@@ -156,6 +159,6 @@ export class DungeonGenerator {
       }
     }
     
-    return { grid, rooms, entrance, exit, gridW, gridH };
+    return { grid, rooms, entrance, exit, gridW, gridH, roomsX: this.roomsX, roomsY: this.roomsY };
   }
 }

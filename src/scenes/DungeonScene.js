@@ -27,9 +27,19 @@ export default class DungeonScene extends Phaser.Scene {
     this.grid = this.dungeon.grid;
     this.rooms = this.dungeon.rooms;
     this.combat = new CombatSystem(this);
+    this.roomsX = this.dungeon.roomsX;
     
-    // Pathfinder for room-to-room navigation
-    this.pathfinder = new Pathfinder(this.grid);
+    // Build row-by-row room order (for knowing which room is "next" in sequence)
+    this.roomSequence = [];
+    for (let s = 0; s < this.rooms.length; s++) {
+      const row = Math.floor(s / this.roomsX);
+      let col = s % this.roomsX;
+      this.roomSequence.push(row * this.roomsX + col);
+    }
+    
+    // State machine
+    this.currentRoomIdx = 0; // current room index in the sequence
+    this.mode = 'idle'; // idle | walk | fight
     
     const RT = CONFIG.RENDER_TILE;
     const SC = CONFIG.TILE_SCALE;
@@ -42,20 +52,16 @@ export default class DungeonScene extends Phaser.Scene {
       for (let x = 0; x < this.dungeon.gridW; x++) {
         const c = this.grid[y][x], px = x*RT, py = y*RT;
         if (c === 0) {
-          // Floor — solid color with subtle grid lines
           const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x2a3d55).setDepth(0).setStrokeStyle(1, 0x556677, 0.6);
           this.tileSprites.push(r);
         } else if (c === 1) {
-          // Wall — use tile with dim tint
           const idx = DUNGEON_TILE_MAP.wall[(x+y)%DUNGEON_TILE_MAP.wall.length];
           const s = this.add.image(px+RT/2, py+RT/2, 'tiles', idx).setDepth(0).setScale(SC).setTint(0x667788);
           this.tileSprites.push(s);
         } else if (c === 2) {
-          // Door
           const idx = DUNGEON_TILE_MAP.door[(x+y)%DUNGEON_TILE_MAP.door.length];
           this.tileSprites.push(this.add.image(px+RT/2, py+RT/2, 'tiles', idx).setDepth(0).setScale(SC));
         } else if (c === 3) {
-          // Corridor — solid with subtle grid
           const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x1a2a3a).setDepth(0).setStrokeStyle(1, 0x2a3a4a, 0.3);
           this.tileSprites.push(r);
         }
@@ -94,15 +100,18 @@ export default class DungeonScene extends Phaser.Scene {
     this.hpText = this.add.text(472, 8, '', {fontSize:'10px',color:'#fff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(1,0).setScrollFactor(0).setDepth(101);
     this.statusText = this.add.text(240, 780, '', {fontSize:'9px',color:'#8899aa',fontFamily:'monospace',stroke:'#000',strokeThickness:2}).setOrigin(0.5,1).setScrollFactor(0).setDepth(101).setAlpha(0.7);
     
-    // State machine
-    this.roomIdx = 0;
-    this.mode = 'idle'; // idle | walk | fight
+    // Warp effect particles
+    this.warpParticles = [];
     
-    this.time.delayedCall(1500, () => this.walkTo(1));
+    // Start walk to first room
+    this.time.delayedCall(1500, () => this.warpToRoom(1));
   }
 
-  walkTo(idx) {
-    if (idx >= this.rooms.length) {
+  /**
+   * Warp hero to the target room (instantly, with visual effect)
+   */
+  warpToRoom(step) {
+    if (step > this.roomSequence.length) {
       this.mode = 'idle';
       this.statusText.setText('🏆 All cleared!');
       this.time.delayedCall(2000, () => {
@@ -111,35 +120,63 @@ export default class DungeonScene extends Phaser.Scene {
       });
       return;
     }
-    this.roomIdx = idx;
-    const room = this.rooms[idx];
+    
+    const roomIdx = this.roomSequence[step - 1];
+    const room = this.rooms[roomIdx];
     const RT = CONFIG.RENDER_TILE;
     
-    // Find pixel path using pathfinder
-    const heroGX = Math.round(this.hero.x / RT);
-    const heroGY = Math.round(this.hero.y / RT);
-    const targetGX = room.x + Math.floor(room.w / 2);
-    const targetGY = room.y + Math.floor(room.h / 2);
+    // Show warp effect
+    this.showWarpEffect(this.hero.x, this.hero.y, room.x * RT, room.y * RT);
     
-    const gridPath = this.pathfinder.findPath(heroGX, heroGY, targetGX, targetGY);
+    // Instantly move hero to room entrance (30% in)
+    const targetGX = room.x + Math.floor(room.w * 0.3);
+    const targetGY = room.y + Math.floor(room.h * 0.5);
     
-    if (gridPath && gridPath.length > 1) {
-      // Skip first node (current position), convert rest to pixel waypoints
-      const waypoints = gridPath.slice(1).map(p => ({
-        x: p.x * RT + RT / 2,
-        y: p.y * RT + RT / 2
-      }));
-      this.hero.setWaypoints(waypoints);
-    } else {
-      // Fallback: direct target
-      this.hero.setMoveTarget(
-        (room.x + room.w/2) * RT,
-        (room.y + room.h/2) * RT
-      );
+    this.hero.x = targetGX * RT;
+    this.hero.y = targetGY * RT;
+    
+    this.currentRoomIdx = roomIdx;
+    this.mode = 'walk';
+    this.statusText.setText(`➡ Room ${step}`);
+  }
+
+  /**
+   * Show visual warp effect (particles flying between points)
+   */
+  showWarpEffect(startX, startY, endX, endY) {
+    const duration = 500;
+    const startTime = this.time.now;
+    
+    for (let i = 0; i < 15; i++) {
+      const particle = this.add.particle({
+        x: startX,
+        y: startY,
+        speed: { x: (endX - startX) / duration, y: (endY - startY) / duration },
+        life: duration,
+        speedY: { x: 0, y: 0 },
+        alpha: 1,
+        scale: 0.5,
+        emissiveColor: 0x4488ff,
+        color: 0x4488ff,
+        size: 3,
+        speed: 100,
+        emitPosition: 'center',
+        emitParticleTexture: 'white',
+        maxParticles: 0,
+        frame: 'white',
+        texture: 'white'
+      });
+      this.warpParticles.push(particle);
     }
     
-    this.mode = 'walk';
-    this.statusText.setText(`➡ Room ${idx+1}`);
+    this.time.delayedCall(duration, () => {
+      this.warpParticles.forEach(p => p.destroy());
+      this.warpParticles = [];
+    });
+  }
+
+  getCurrentRoomIdx() {
+    return this.currentRoomIdx;
   }
 
   update(time, delta) {
@@ -147,21 +184,38 @@ export default class DungeonScene extends Phaser.Scene {
     if (!this.hero || !this.hero.alive) return;
     this.hero.update(dt);
     for (const e of this.enemies) if (e.alive) e.update(dt, this.hero);
-    this.combat.update(dt, this.hero, this.enemies);
     
-    if (this.mode === 'walk' && !this.hero.isMoving() && this.roomIdx > 0) {
-      // Arrived at room — switch to fight
+    if (this.mode !== 'walk') {
+      const roomCombatEnemies = this.roomEnemyLists[this.getCurrentRoomIdx()] || [];
+      this.combat.update(dt, this.hero, roomCombatEnemies);
+    }
+    
+    if (this.mode === 'walk' && !this.hero.isMoving() && this.currentRoomIdx > 0) {
       this.mode = 'fight';
     }
     
-    if (this.mode === 'fight' && this.roomIdx > 0) {
-      const list = this.roomEnemyLists[this.roomIdx] || [];
+    if (this.mode === 'fight' && this.currentRoomIdx > 0) {
+      const roomIdx = this.getCurrentRoomIdx();
+      const list = this.roomEnemyLists[roomIdx] || [];
       const alive = list.filter(e => e.alive).length;
       if (alive === 0) {
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
         this.mode = 'idle';
-        this.time.delayedCall(500, () => this.walkTo(this.roomIdx + 1));
+        
+        // Check if this is the last room of current row
+        const row = Math.floor(roomIdx / this.roomsX);
+        const nextRoomInRow = roomIdx + 1;
+        
+        // If next room in row exists, walk to it
+        if (nextRoomInRow < this.roomSequence.length) {
+          this.time.delayedCall(500, () => this.warpToRoom(nextRoomInRow + 1));
+        } 
+        // Otherwise, this is the last room of this row, warp to first room of next row
+        else {
+          const nextRowStart = (row + 1) * this.roomsX;
+          this.time.delayedCall(500, () => this.warpToRoom(nextRowStart + 1));
+        }
       } else {
         this.statusText.setText(`⚔ ${alive} enemy${alive > 1 ? 'ies' : ''}`);
       }
