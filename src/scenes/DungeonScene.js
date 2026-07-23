@@ -141,6 +141,23 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   /**
+   * Walk hero to the next room (within same row)
+   */
+  walkToRoom(step) {
+    const roomIdx = this.roomSequence[step - 1];
+    const room = this.rooms[roomIdx];
+    const RT = CONFIG.RENDER_TILE;
+    const targetGX = room.x + Math.floor(room.w * 0.3);
+    const targetGY = room.y + Math.floor(room.h * 0.5);
+    
+    // Walk straight right into the next room
+    this.hero.setMoveTarget(targetGX * RT, targetGY * RT);
+    this.currentRoomIdx = roomIdx;
+    this.mode = 'walk';
+    this.statusText.setText(`➡ Room ${step}`);
+  }
+
+  /**
    * Show visual warp effect (particles flying between points)
    */
   showWarpEffect(startX, startY, endX, endY) {
@@ -198,15 +215,23 @@ export default class DungeonScene extends Phaser.Scene {
         const row = Math.floor(roomIdx / this.roomsX);
         const isLastRoomInRow = (roomIdx + 1) % this.roomsX === 0;
         
-        if (isLastRoomInRow && roomIdx + 1 < this.rooms.length) {
+        // Find current step (1-indexed) in roomSequence
+        const currentStep = this.roomSequence.indexOf(roomIdx) + 1;
+        
+        if (isLastRoomInRow && currentStep < this.roomSequence.length) {
           // Last room of row → warp to first room of next row
           this.time.delayedCall(500, () => {
-            this.warpToRoom(roomIdx + 1);
+            this.warpToRoom(currentStep + 1);
           });
-        } else if (roomIdx + 1 < this.rooms.length) {
+        } else if (currentStep < this.roomSequence.length) {
           // Not last room of row → walk to next room (normal)
           this.time.delayedCall(500, () => {
-            this.walkToRoom(roomIdx + 1);
+            this.walkToRoom(currentStep + 1);
+          });
+        } else {
+          // Last room in entire dungeon → victory!
+          this.time.delayedCall(500, () => {
+            this.warpToRoom(currentStep + 1);
           });
         }
       } else {
