@@ -104,7 +104,7 @@ export default class DungeonScene extends Phaser.Scene {
     this.warpParticles = [];
     
     // Start walk to first room
-    this.time.delayedCall(1500, () => this.warpToRoom(1));
+    this.time.delayedCall(1500, () => this.walkToRoom(2));
   }
 
   /**
