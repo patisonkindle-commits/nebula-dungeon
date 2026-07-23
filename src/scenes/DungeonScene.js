@@ -29,7 +29,7 @@ export default class DungeonScene extends Phaser.Scene {
     this.combat = new CombatSystem(this);
     this.roomsX = this.dungeon.roomsX;
     
-    // Build row-by-row room order (for knowing which room is "next" in sequence)
+    // Build row-by-row room order
     this.roomSequence = [];
     for (let s = 0; s < this.rooms.length; s++) {
       const row = Math.floor(s / this.roomsX);
@@ -64,6 +64,8 @@ export default class DungeonScene extends Phaser.Scene {
         } else if (c === 3) {
           const r = this.add.rectangle(px+RT/2, py+RT/2, RT-1, RT-1, 0x1a2a3a).setDepth(0).setStrokeStyle(1, 0x2a3a4a, 0.3);
           this.tileSprites.push(r);
+        } else if (c === 4) {
+          // Render special floor tiles
         }
       }
     }
@@ -94,17 +96,84 @@ export default class DungeonScene extends Phaser.Scene {
       }
     }
     
-    // HUD
+    // Render Props (Medium Effort #9)
+    this.props = [];
+    for (let i = 0; i < this.rooms.length; i++) {
+      const room = this.rooms[i];
+      if (!room.props) room.props = [];
+      room.props.forEach(p => {
+        const propImg = this.add.image(p.x*RT+RT/2, p.y*RT+RT/2, p.type.replace('spr','').toLowerCase());
+        propImg.setDepth(1);
+        this.props.push(propImg);
+      });
+    }
+    
+    // HUD UI
     this.goldText = this.add.text(8, 8, '', {fontSize:'12px',color:'#ffd700',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setScrollFactor(0).setDepth(101);
-    this.depthText = this.add.text(240, 8, '', {fontSize:'11px',color:'#4a9eff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(0.5,0).setScrollFactor(0).setDepth(101);
+    this.depthText = this.add.text(240, 8, '', {fontSize:'11px',color:'#4a9eff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     this.hpText = this.add.text(472, 8, '', {fontSize:'10px',color:'#fff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(1,0).setScrollFactor(0).setDepth(101);
     this.statusText = this.add.text(240, 780, '', {fontSize:'9px',color:'#8899aa',fontFamily:'monospace',stroke:'#000',strokeThickness:2}).setOrigin(0.5,1).setScrollFactor(0).setDepth(101).setAlpha(0.7);
+    
+    this.hpBarBg = this.add.rectangle(472, 12, 100, 8, 0x333333).setDepth(101);
+    this.hpBarFill = this.add.rectangle(472, 12, 100, 8, 0x44dd44).setDepth(101);
+    
+    this.progBarBg = this.add.rectangle(240, 830, 240, 6, 0x333333).setOrigin(0.5).setDepth(101);
+    this.progBarFill = this.add.rectangle(240, 830, 0, 6, 0x4a9eff).setOrigin(0.5).setDepth(101);
+    this.progBarText = this.add.text(240, 845, '', {fontSize:'9px',color:'#8899aa',fontFamily:'monospace'}).setOrigin(0.5).setDepth(101);
+    
+    this.minimapGfx = this.add.graphics().setDepth(101);
+    this.minimap_grid = [];
+    for (let y = 0; y < 4; y++) {
+      this.minimap_grid[y] = [];
+      for (let x = 0; x < 5; x++) {
+        this.minimap_grid[y][x] = null;
+      }
+    }
     
     // Warp effect particles
     this.warpParticles = [];
     
     // Start walk to first room
     this.time.delayedCall(1500, () => this.walkToRoom(2));
+  }
+
+  updateHUD() {
+    if (!this.hpBarFill) return;
+    
+    // HP Bar
+    const hpRatio = this.hero.hp / this.hero.maxHp;
+    this.hpBarFill.width = Math.max(0, Math.min(100, hpRatio * 100));
+    this.hpBarFill.setAlpha(hpRatio > 0.3 ? 1 : 0.3);
+    this.hpText.setText(`❤ ${Math.floor(this.hero.hp)}/${this.hero.maxHp}`);
+
+    // Progression Bar
+    const currentStep = this.roomSequence.indexOf(this.currentRoomIdx) + 1;
+    const progress = (currentStep / this.roomSequence.length) * 240;
+    this.progBarFill.width = progress;
+    this.progBarText.setText(`Step: ${currentStep} / ${this.roomSequence.length}`);
+
+    // Minimap Update
+    this.minimapGfx.clear();
+    const minSize = 20;
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 5; x++) {
+        const roomIdx = y * 5 + x;
+        if (roomIdx === this.currentRoomIdx) {
+          this.minimapGfx.fillStyle(0x4a9eff, 1);
+          this.minimapGfx.fillRect(x * minSize, y * minSize, minSize, minSize);
+        } else if (this.roomEnemyLists[roomIdx] && this.roomEnemyLists[roomIdx].some(e => e.alive)) {
+          this.minimapGfx.fillStyle(0xee4444, 1);
+          this.minimapGfx.fillRect(x * minSize + 2, y * minSize + 2, minSize - 4, minSize - 4);
+        } else {
+          this.minimapGfx.fillStyle(0x223344, 0.5);
+          this.minimapGfx.fillRect(x * minSize, y * minSize, minSize, minSize);
+        }
+      }
+    }
+    
+    this.goldText.setText(`✦ ${this.hero.gold}`);
+    this.depthText.setText(`Floor ${this.depth}`);
+    this.statusText.setText(this.statusText.text);
   }
 
   /**
@@ -203,37 +272,6 @@ export default class DungeonScene extends Phaser.Scene {
     return this.currentRoomIdx;
   }
 
-  /**
-   * Show floating gold pickup text + particle burst
-   */
-  _showGoldFloat(x, y, text) {
-    const txt = this.add.text(x, y, text, {
-      fontSize: '14px', color: '#ffd700', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(50);
-
-    // Floating gold particles
-    const emitter = this.add.particles(x, y, 'gold_particle', {
-      speed: { min: 30, max: 80 },
-      angle: { min: 220, max: 320 },
-      lifespan: 600,
-      scale: { start: 1, end: 0 },
-      alpha: { start: 1, end: 0 },
-      quantity: 8,
-      gravityY: 50,
-    });
-    this.time.delayedCall(700, () => emitter.destroy());
-
-    this.tweens.add({
-      targets: txt,
-      y: y - 50,
-      alpha: 0,
-      duration: 900,
-      ease: 'Power2',
-      onComplete: () => txt.destroy(),
-    });
-  }
-
   update(time, delta) {
     const dt = delta / 1000;
     if (!this.hero || !this.hero.alive) return;
@@ -256,10 +294,7 @@ export default class DungeonScene extends Phaser.Scene {
       if (alive === 0) {
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
-
-        // Gold pickup animation
-        this._showGoldFloat(this.hero.x, this.hero.y - 20, '+20');
-
+        
         // Check if this is the last room of current row
         const row = Math.floor(roomIdx / this.roomsX);
         const isLastRoomInRow = (roomIdx + 1) % this.roomsX === 0;
@@ -300,16 +335,22 @@ export default class DungeonScene extends Phaser.Scene {
     this.goldText?.setText(`✦ ${this.hero.gold}`);
     this.depthText?.setText(`Floor ${this.depth}`);
     this.hpText?.setText(`❤ ${this.hero.hp}/${this.hero.maxHp}`);
+    this.updateHUD();
   }
 
   cleanUp() {
     this.combat?.destroy(); this.hero?.destroy();
     this.enemies?.forEach(e => e.destroy());
     this.tileSprites?.forEach(s => s?.destroy());
-    this.warpParticles?.forEach(e => e?.destroy());
     this.goldText?.destroy();
     this.depthText?.destroy();
     this.hpText?.destroy();
     this.statusText?.destroy();
+    this.hpBarBg?.destroy();
+    this.hpBarFill?.destroy();
+    this.progBarBg?.destroy();
+    this.progBarFill?.destroy();
+    this.progBarText?.destroy();
+    this.minimapGfx?.destroy();
   }
 }
