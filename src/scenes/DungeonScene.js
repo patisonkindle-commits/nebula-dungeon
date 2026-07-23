@@ -132,8 +132,11 @@ export default class DungeonScene extends Phaser.Scene {
     const targetGX = room.x + Math.floor(room.w * 0.3);
     const targetGY = room.y + Math.floor(room.h * 0.5);
     
+    this.hero.heroX = targetGX * RT;
+    this.hero.heroY = targetGY * RT;
     this.hero.x = targetGX * RT;
     this.hero.y = targetGY * RT;
+    this.hero.moveTarget = null;
     
     this.currentRoomIdx = roomIdx;
     this.mode = 'walk';
@@ -150,8 +153,49 @@ export default class DungeonScene extends Phaser.Scene {
     const targetGX = room.x + Math.floor(room.w * 0.3);
     const targetGY = room.y + Math.floor(room.h * 0.5);
     
-    // Walk straight right into the next room
-    this.hero.setMoveTarget(targetGX * RT, targetGY * RT);
+    // Build waypoints through corridors to prevent diagonal wall-clipping
+    const currRoomIdx = this.getCurrentRoomIdx();
+    const currRoom = this.rooms[currRoomIdx];
+    const waypoints = [];
+    
+    // Current room center (horizontal exit point toward target)
+    const currCenterY = (currRoom.y + Math.floor(currRoom.h * 0.5)) * RT;
+    const currRightEdge = (currRoom.x + currRoom.w) * RT;
+    const targetLeftEdge = room.x * RT;
+    
+    // If same row → walk right through corridor
+    if (currRoom.ry === room.ry) {
+      // 1) walk to right edge of current room at center Y
+      waypoints.push({ x: currRightEdge, y: currCenterY });
+      // 2) walk to left edge of target room at same Y
+      waypoints.push({ x: targetLeftEdge, y: currCenterY });
+    } else {
+      // Different row → walk down/up through corridor
+      const roomCenterX = (room.x + Math.floor(room.w * 0.5)) * RT;
+      const currCenterX = (currRoom.x + Math.floor(currRoom.w * 0.5)) * RT;
+      const currBottomEdge = (currRoom.y + currRoom.h) * RT;
+      const targetTopEdge = room.y * RT;
+      
+      // 1) walk to the exit edge (right if moving to next col, center otherwise)
+      if (currRoom.ry < room.ry) {
+        // Going down
+        waypoints.push({ x: currCenterX, y: currBottomEdge });
+        waypoints.push({ x: currCenterX, y: targetTopEdge });
+      } else {
+        // Going up (shouldn't normally happen in linear progression)
+        waypoints.push({ x: currCenterX, y: (currRoom.y) * RT });
+        waypoints.push({ x: currCenterX, y: (room.y + room.h) * RT });
+      }
+    }
+    
+    // Final destination
+    waypoints.push({ x: targetGX * RT, y: targetGY * RT });
+    
+    this.hero.setWaypoints(waypoints);
+    this.hero.heroX = waypoints[0].x;
+    this.hero.heroY = waypoints[0].y;
+    this.hero.x = waypoints[0].x;
+    this.hero.y = waypoints[0].y;
     this.currentRoomIdx = roomIdx;
     this.mode = 'walk';
     this.statusText.setText(`➡ Room ${step}`);
