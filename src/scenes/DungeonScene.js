@@ -174,27 +174,26 @@ export default class DungeonScene extends Phaser.Scene {
   }
 
   /**
-   * Show visual warp effect (particles flying between points)
+   * Show visual warp effect (particles streaming to destination)
    */
   showWarpEffect(startX, startY, endX, endY) {
     const duration = 500;
-    const startTime = this.time.now;
-    
-    // Simple particle effect using emitter
-    const emitter = this.add.particles(0, 0, 'white', {
-      speed: { x: (endX - startX) / duration, y: (endY - startY) / duration },
+
+    const emitter = this.add.particles(0, 0, 'warp_particle', {
+      speed: { x: (endX - startX) / duration * 2, y: (endY - startY) / duration * 2 },
       lifespan: duration,
-      scale: { start: 0.5, end: 0 },
+      scale: { start: 0.6, end: 0 },
       alpha: { start: 1, end: 0 },
-      quantity: 15,
+      quantity: 20,
       emitY: startY,
       emitX: startX,
-      tint: 0x4488ff
+      tint: 0x4488ff,
+      frequency: 30
     });
-    
+
     this.warpParticles.push(emitter);
-    
-    this.time.delayedCall(duration, () => {
+
+    this.time.delayedCall(duration + 100, () => {
       emitter.destroy();
       this.warpParticles = [];
     });
@@ -202,6 +201,37 @@ export default class DungeonScene extends Phaser.Scene {
 
   getCurrentRoomIdx() {
     return this.currentRoomIdx;
+  }
+
+  /**
+   * Show floating gold pickup text + particle burst
+   */
+  _showGoldFloat(x, y, text) {
+    const txt = this.add.text(x, y, text, {
+      fontSize: '14px', color: '#ffd700', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(50);
+
+    // Floating gold particles
+    const emitter = this.add.particles(x, y, 'gold_particle', {
+      speed: { min: 30, max: 80 },
+      angle: { min: 220, max: 320 },
+      lifespan: 600,
+      scale: { start: 1, end: 0 },
+      alpha: { start: 1, end: 0 },
+      quantity: 8,
+      gravityY: 50,
+    });
+    this.time.delayedCall(700, () => emitter.destroy());
+
+    this.tweens.add({
+      targets: txt,
+      y: y - 50,
+      alpha: 0,
+      duration: 900,
+      ease: 'Power2',
+      onComplete: () => txt.destroy(),
+    });
   }
 
   update(time, delta) {
@@ -226,7 +256,10 @@ export default class DungeonScene extends Phaser.Scene {
       if (alive === 0) {
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
-        
+
+        // Gold pickup animation
+        this._showGoldFloat(this.hero.x, this.hero.y - 20, '+20');
+
         // Check if this is the last room of current row
         const row = Math.floor(roomIdx / this.roomsX);
         const isLastRoomInRow = (roomIdx + 1) % this.roomsX === 0;
@@ -251,7 +284,7 @@ export default class DungeonScene extends Phaser.Scene {
           });
         }
       } else {
-        this.statusText.setText(`⚔ ${alive} enemy${alive > 1 ? 'ies' : ''}`);
+        this.statusText.setText(`⚔ ${alive} ${alive === 1 ? 'enemy' : 'enemies'}`);
       }
     }
     
@@ -273,6 +306,7 @@ export default class DungeonScene extends Phaser.Scene {
     this.combat?.destroy(); this.hero?.destroy();
     this.enemies?.forEach(e => e.destroy());
     this.tileSprites?.forEach(s => s?.destroy());
+    this.warpParticles?.forEach(e => e?.destroy());
     this.goldText?.destroy();
     this.depthText?.destroy();
     this.hpText?.destroy();

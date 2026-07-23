@@ -44,20 +44,33 @@ export default class BootScene extends Phaser.Scene {
             frameRate: 10,
             repeat: -1
         });
-        
+
         this.anims.create({
             key: 'skeleton_walk',
             frames: this.anims.generateFrameNumbers('skeleton', { start: 0, end: 3 }),
             frameRate: 8,
             repeat: -1
         });
-        
+
         this.anims.create({
             key: 'orc_archer_walk',
             frames: this.anims.generateFrameNumbers('orc_archer', { start: 0, end: 3 }),
             frameRate: 8,
             repeat: -1
         });
+
+        // Generate particle texture for warp/effects
+        const gfx = this.make.graphics({ add: false });
+        gfx.fillStyle(0xffffff);
+        gfx.fillCircle(6, 6, 6);
+        gfx.generateTexture('warp_particle', 12, 12);
+        gfx.destroy();
+
+        const gfx2 = this.make.graphics({ add: false });
+        gfx2.fillStyle(0xffd700);
+        gfx2.fillCircle(3, 3, 3);
+        gfx2.generateTexture('gold_particle', 6, 6);
+        gfx2.destroy();
 
         console.log("Premium Assets Loaded Successfully!");
         this.scene.start('title');

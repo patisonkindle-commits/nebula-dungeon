@@ -80,6 +80,7 @@ export class Hero extends Phaser.GameObjects.Sprite {
             this.alive = false;
         }
         this.setTint(0xff4444);
+        this.scene.cameras.main.shake(80, 0.004);
         this.scene.time.delayedCall(100, () => {
             if (this.alive) this.clearTint();
         });
