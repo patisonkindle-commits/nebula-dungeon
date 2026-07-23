@@ -69,7 +69,10 @@ export class Hero extends Phaser.GameObjects.Sprite {
     }
 
     isMoving() {
-        return this.moveTarget !== null;
+        if (!this.moveTarget) return false;
+        const dx = this.moveTarget.x - this.heroX;
+        const dy = this.moveTarget.y - this.heroY;
+        return Math.sqrt(dx * dx + dy * dy) > 4;
     }
 
     takeDamage(amount) {
