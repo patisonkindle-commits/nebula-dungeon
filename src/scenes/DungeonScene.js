@@ -310,7 +310,6 @@ export default class DungeonScene extends Phaser.Scene {
     const room = this.rooms[roomIdx];
     const RT = CONFIG.RENDER_TILE;
     const targetGX = room.x + Math.floor(room.w * 0.3);
-    
     this.hero.setMoveTarget(targetGX * RT, this.hero.heroY);
     this.currentRoomIdx = roomIdx;
     this.mode = 'walk';
