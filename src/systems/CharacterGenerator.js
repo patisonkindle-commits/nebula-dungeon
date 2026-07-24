@@ -257,8 +257,16 @@ export class CharacterGenerator {
         if (this.scene.textures.exists(key)) {
           this.scene.textures.remove(key);
         }
-        // Force singular sprite (single frame)
-        this.scene.textures.addImage(key, img);
+        // Use addCanvas with the img directly
+        // First draw to a canvas, then add as canvas texture
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, 0, 0);
+        
+        this.scene.textures.addCanvas(key, canvas);
         resolve(key);
       };
       img.onerror = () => resolve(null);
