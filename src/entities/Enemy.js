@@ -6,7 +6,7 @@ const ENEMY_STATS = {
   golem: { hp: 250, attackDmg: 22, attackRange: 50, attackCooldown: 3.0, speed: 12, sprite: 'orc_archer', anim: 'orc_archer_walk', tint: 0x88aa44 },
   goblin: { hp: 35, attackDmg: 6, attackRange: 40, attackCooldown: 1.2, speed: 50, sprite: 'goblin', anim: 'goblin_walk', tint: 0x66dd66 },
   batilisk: { hp: 180, attackDmg: 18, attackRange: 60, attackCooldown: 2.8, speed: 18, sprite: 'batilisk', anim: 'batilisk_walk', tint: 0xcc8844 },
-  minotaur: { hp: 300, attackDmg: 28, attackRange: 55, attackCooldown: 3.5, speed: 15, sprite: 'minotaur', anim: 'minotaur_walk', tint: 0xaa5533 },
+  minotaur: { hp: 300, attackDmg: 28, attackRange: 55, attackCooldown: 3.5, speed: 15, sprite: 'minotaur', anim: null, tint: 0xaa5533 },
   dragon: { hp: 500, attackDmg: 40, attackRange: 120, attackCooldown: 4.0, speed: 10, sprite: 'dragon', anim: 'dragon_walk', tint: 0xff4422 },
 };
 
@@ -18,11 +18,9 @@ const SPRITE_ANIM_MAP = {
   'goblin': 'goblin_walk',
   'batilisk': 'batilisk_walk',
   'dragon': 'dragon_walk',
-  'minotaur': 'minotaur_walk',
   // Boss-level sprites
   'batilisk_boss': 'batilisk_walk',
   'dragon_boss': 'dragon_walk',
-  'minotaur_boss': 'minotaur_walk',
 };
 
 export class Enemy extends Phaser.GameObjects.Sprite {
@@ -51,9 +49,9 @@ export class Enemy extends Phaser.GameObjects.Sprite {
         // Visual variety via tint
         if (stats.tint) this.setTint(stats.tint);
 
-        // Start walk animation
-        const animKey = stats.anim || SPRITE_ANIM_MAP[stats.sprite] || 'skeleton_walk';
-        this.play(animKey);
+        // Start walk animation (if this spriteType has one)
+        const animKey = stats.anim || SPRITE_ANIM_MAP[stats.sprite];
+        if (animKey) this.play(animKey);
 
         this._teleportTimer = type === 'ghost' ? 3 + Math.random() * 2 : 0;
         this.scene_ref = scene;

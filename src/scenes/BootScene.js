@@ -54,10 +54,8 @@ export default class BootScene extends Phaser.Scene {
             frameWidth: 48,
             frameHeight: 32
         });
-        this.load.spritesheet('minotaur', '/nebula-dungeon/assets/debts_assets/Characters/sprMinotaur3.png', {
-            frameWidth: 28,
-            frameHeight: 26
-        });
+        // Load minotaur as single image (no animation needed)
+        this.load.image('minotaur', '/nebula-dungeon/assets/debts_assets/Characters/sprMinotaur3.png');
 
         // Load Environment & Effects as images
         this.load.image('gold_vein', '/nebula-dungeon/assets/debts_assets/Environment/sprGoldVein.png');
@@ -66,23 +64,11 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('water', '/nebula-dungeon/assets/debts_assets/Environment/sprWater.png');
         this.load.image('sparkle', '/nebula-dungeon/assets/debts_assets/Effects/sprSparkle.png');
 
-        // Load environment props spritesheets
-        this.load.spritesheet('props_catacombs', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsCatacombs.png', {
-            frameWidth: 16,
-            frameHeight: 16
-        });
-        this.load.spritesheet('props_swamp', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsSwamp.png', {
-            frameWidth: 16,
-            frameHeight: 16
-        });
-        this.load.spritesheet('props_inferno', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsInferno.png', {
-            frameWidth: 16,
-            frameHeight: 16
-        });
-        this.load.spritesheet('props_corpses', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsCorpses.png', {
-            frameWidth: 16,
-            frameHeight: 16
-        });
+        // Load environment props as images (not spritesheets - they're single sprites)
+        this.load.image('props_catacombs', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsCatacombs.png');
+        this.load.image('props_swamp', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsSwamp.png');
+        this.load.image('props_inferno', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsInferno.png');
+        this.load.image('props_corpses', '/nebula-dungeon/assets/debts_assets/Environment/sprPropsCorpses.png');
     }
 
     create() {
@@ -136,12 +122,7 @@ export default class BootScene extends Phaser.Scene {
             repeat: -1
         });
 
-        this.anims.create({
-            key: 'minotaur_walk',
-            frames: this.anims.generateFrameNumbers('minotaur', { start: 0, end: 3 }),
-            frameRate: 7,
-            repeat: -1
-        });
+        // minotaur uses static sprite (no animation needed)
 
         // ── 2) Generate particle textures ──
         const gfx = this.make.graphics({ add: false });
