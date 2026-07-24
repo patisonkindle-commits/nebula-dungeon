@@ -22,6 +22,38 @@ export class Hero extends Phaser.GameObjects.Sprite {
         
         this.play('wizard_walk');
         this.scene = scene;
+
+        // Cosmetics: character appearance overlay
+        this.cosmeticOverlay = null;
+        this.cosmeticKey = null;
+    }
+
+    // ── Generate unique hero appearance using CharacterGenerator ──
+    async generateAppearance() {
+        const scene = this.scene;
+        if (!scene) return;
+
+        // Use the CharacterGenerator from registry
+        const charGen = scene.registry.get('charGen');
+        if (!charGen) return;
+
+        try {
+            // Seed based on session + timestamp for deterministic look per game
+            const seed = `hero_${Date.now()}`;
+            const result = await charGen.generateCharacter('hero', seed);
+            this.cosmeticKey = result.textureKey;
+
+            // Create a cosmetic overlay sprite that follows the hero
+            if (this.cosmeticOverlay) {
+                this.cosmeticOverlay.destroy();
+            }
+            this.cosmeticOverlay = scene.add.image(this.x, this.y, this.cosmeticKey);
+            this.cosmeticOverlay.setScale(1.5);
+            this.cosmeticOverlay.setDepth(11);
+            this.cosmeticOverlay.setAlpha(0.85);
+        } catch (e) {
+            console.warn('Hero: Could not generate cosmetic appearance', e);
+        }
     }
 
     setWaypoints(wps) {
@@ -36,8 +68,12 @@ export class Hero extends Phaser.GameObjects.Sprite {
         if (this.invulnerableTimer > 0) {
             this.invulnerableTimer -= dt;
             this.setAlpha(0.3 + Math.abs(Math.sin(this.invulnerableTimer * 8)) * 0.7);
+            if (this.cosmeticOverlay) {
+                this.cosmeticOverlay.setAlpha(this.alpha);
+            }
             if (this.invulnerableTimer <= 0) {
                 this.setAlpha(1);
+                if (this.cosmeticOverlay) this.cosmeticOverlay.setAlpha(0.85);
             }
         }
         
@@ -50,6 +86,10 @@ export class Hero extends Phaser.GameObjects.Sprite {
                 this.heroY += (dy / dist) * this.speed * dt;
                 this.x = this.heroX;
                 this.y = this.heroY;
+                // Sync cosmetic overlay
+                if (this.cosmeticOverlay) {
+                    this.cosmeticOverlay.setPosition(this.x, this.y);
+                }
             } else {
                 // Reached current waypoint — go to next
                 if (this.waypoints && this.waypointIdx < this.waypoints.length - 1) {
@@ -83,9 +123,15 @@ export class Hero extends Phaser.GameObjects.Sprite {
             this.alive = false;
         }
         this.setTint(0xff4444);
+        if (this.cosmeticOverlay) {
+            this.cosmeticOverlay.setTint(0xff6666);
+        }
         this.scene.cameras.main.shake(80, 0.004);
         this.scene.time.delayedCall(100, () => {
-            if (this.alive) this.clearTint();
+            if (this.alive) {
+                this.clearTint();
+                if (this.cosmeticOverlay) this.cosmeticOverlay.clearTint();
+            }
         });
     }
 }

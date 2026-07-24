@@ -78,6 +78,13 @@ export default class DungeonScene extends Phaser.Scene {
     this.hero.gold = this.heroGold;
     this.cameras.main.setBounds(0, 0, this.worldW, this.worldH);
     this.cameras.main.startFollow(this.hero, true, 0.1, 0.1).setZoom(1);
+
+    // Generate hero cosmetic appearance (non-blocking)
+    this.time.delayedCall(100, () => {
+      if (this.hero && this.hero.generateAppearance) {
+        this.hero.generateAppearance();
+      }
+    });
     
     // Spawn enemies
     this.enemies = [];
