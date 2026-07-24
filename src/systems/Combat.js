@@ -1,4 +1,5 @@
-// Combat system — handles attack logic between hero and enemies
+// Combat system — enhanced with critical hits, colored damage, gold cascade
+// Tier 1.1 + 1.2: Critical hits (Gold/Orange), gold splash cascade
 
 export class CombatSystem {
   constructor(scene) {
@@ -12,7 +13,7 @@ export class CombatSystem {
 
     this.heroAttackTimer -= dt;
 
-    // Hero auto-attacks nearest enemy (every 0.8s)
+    // Find nearest enemy
     let nearestEnemy = null;
     let nearestDist = Infinity;
 
@@ -27,56 +28,104 @@ export class CombatSystem {
       }
     }
 
+    // Hero attacks
     if (nearestEnemy && nearestDist < 200 && this.heroAttackTimer <= 0) {
-      const dmg = 25;
+      const isCrit = Math.random() < 0.2; // 20% crit chance
+      const dmg = isCrit ? 50 : 25;
+      const color = isCrit ? '#ffaa00' : '#ffffff';
+
       const result = nearestEnemy.takeDamage(dmg);
       this.heroAttackTimer = 0.8;
-      this.showDamage(nearestEnemy.x, nearestEnemy.y, dmg, '#ffffff');
+
+      // Colored damage number (crit = bigger + ⚡)
+      this.showDamage(nearestEnemy.x, nearestEnemy.y, dmg, color, isCrit);
+
+      // Hero attack visual burst
+      if (this.scene.showHeroAttack) {
+        this.scene.showHeroAttack(hero.x, hero.y, nearestEnemy.x, nearestEnemy.y, isCrit);
+      }
 
       if (result.killed) {
+        // Gold cascade! 3-5 gold numbers fly out
         hero.gold += result.gold;
+        this.showGoldCascade(nearestEnemy.x, nearestEnemy.y, result.gold);
         this.showDamage(nearestEnemy.x, nearestEnemy.y - 20, result.exp, '#44ff88');
+
         this.scene.time.delayedCall(300, () => {
-          nearestEnemy.destroy();
+          if (nearestEnemy.alive === false) nearestEnemy.destroy();
         });
       }
     }
 
-    // Enemies attack hero — slower and less frequent
+    // Enemies attack hero
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
-      
       const now = this.scene.time.now;
       const timeSinceLast = (now - enemy.lastAttackTime) / 1000;
-      
       if (enemy.canAttack(hero) && timeSinceLast > enemy.attackCooldown) {
-        hero.takeDamage(enemy.attackDmg);
+        const dmg = enemy.attackDmg;
+        hero.takeDamage(dmg);
         enemy.lastAttackTime = now;
-        this.showDamage(hero.x, hero.y - 20, enemy.attackDmg, '#ff4444');
+        this.showDamage(hero.x, hero.y - 20, dmg, '#ff6666'); // red-variant for hero hits
       }
     }
 
-    // Update damage numbers
+    // Update floating numbers
     for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
       const dn = this.damageNumbers[i];
-      dn.y -= 20 * dt;
-      dn.alpha -= dt * 1.5;
+      dn.y += dn.vy * dt;
+      dn.x += dn.vx * dt;
+      dn.life -= dt;
       dn.text.setPosition(dn.x, dn.y);
-      dn.text.setAlpha(dn.alpha);
-      if (dn.alpha <= 0) {
+      const alpha = Math.min(1, dn.life * 2);
+      dn.text.setAlpha(alpha);
+      if (dn.life <= 0) {
         dn.text.destroy();
         this.damageNumbers.splice(i, 1);
       }
     }
   }
 
-  showDamage(x, y, amount, color) {
-    const txt = this.scene.add.text(x, y, `${amount}`, {
-      fontSize: '9px', color, fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 2,
+  showDamage(x, y, amount, color = '#ffffff', isCrit = false) {
+    const fontSize = isCrit ? '15px' : '10px';
+    const label = isCrit ? `⚡${amount}!` : `${amount}`;
+    const txt = this.scene.add.text(x, y, label, {
+      fontSize, color, fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: isCrit ? 4 : 2,
+      fontStyle: isCrit ? 'bold' : 'normal',
     }).setOrigin(0.5).setDepth(50);
 
-    this.damageNumbers.push({ x, y, alpha: 1, text: txt });
+    this.damageNumbers.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 15,
+      vy: -60 + Math.random() * -20,
+      life: 1.0,
+      text: txt,
+    });
+  }
+
+  showGoldCascade(x, y, totalGold) {
+    const count = 3 + Math.floor(Math.random() * 3); // 3-5 pieces
+    const perGold = Math.max(1, Math.floor(totalGold / count));
+    for (let i = 0; i < count; i++) {
+      const txt = this.scene.add.text(
+        x + (Math.random() - 0.5) * 50,
+        y + (Math.random() - 0.5) * 30,
+        `✦${perGold}`,
+        {
+          fontSize: '9px', color: '#ffd700', fontFamily: 'monospace',
+          stroke: '#000', strokeThickness: 2,
+        }
+      ).setOrigin(0.5).setDepth(50);
+
+      this.damageNumbers.push({
+        x: txt.x, y: txt.y,
+        vx: (Math.random() - 0.5) * 40,
+        vy: -70 + Math.random() * -20,
+        life: 1.2,
+        text: txt,
+      });
+    }
   }
 
   destroy() {

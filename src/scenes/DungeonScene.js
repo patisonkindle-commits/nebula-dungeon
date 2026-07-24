@@ -1,4 +1,5 @@
 // Main dungeon play scene — simplified room progression
+// Tier 1: Hero attack visual, room clear effect, boss indicator
 
 import Phaser from 'phaser';
 import { CONFIG } from '../config.js';
@@ -28,6 +29,7 @@ export default class DungeonScene extends Phaser.Scene {
     this.rooms = this.dungeon.rooms;
     this.combat = new CombatSystem(this);
     this.roomsX = this.dungeon.roomsX;
+    this.roomsY = this.dungeon.roomsY;
     
     // Build row-by-row room order
     this.roomSequence = [];
@@ -38,8 +40,8 @@ export default class DungeonScene extends Phaser.Scene {
     }
     
     // State machine
-    this.currentRoomIdx = 0; // current room index in the sequence
-    this.mode = 'idle'; // idle | walk | fight
+    this.currentRoomIdx = 0;
+    this.mode = 'idle';
     
     const RT = CONFIG.RENDER_TILE;
     const SC = CONFIG.TILE_SCALE;
@@ -77,9 +79,9 @@ export default class DungeonScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.worldW, this.worldH);
     this.cameras.main.startFollow(this.hero, true, 0.1, 0.1).setZoom(1);
     
-    // Spawn enemies — track by room
-    this.enemies = [];          // ALL enemies
-    this.roomEnemyLists = {};   // { roomIdx: [enemy, ...] }
+    // Spawn enemies
+    this.enemies = [];
+    this.roomEnemyLists = {};
     
     for (let i = 1; i < this.rooms.length; i++) {
       const room = this.rooms[i];
@@ -96,7 +98,7 @@ export default class DungeonScene extends Phaser.Scene {
       }
     }
     
-    // Render Props (Medium Effort #9)
+    // Render Props
     this.props = [];
     for (let i = 0; i < this.rooms.length; i++) {
       const room = this.rooms[i];
@@ -108,10 +110,17 @@ export default class DungeonScene extends Phaser.Scene {
       });
     }
     
-    // HUD UI
+    // HUD UI — repositioned for new elements
     this.goldText = this.add.text(8, 8, '', {fontSize:'12px',color:'#ffd700',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setScrollFactor(0).setDepth(101);
     this.depthText = this.add.text(240, 8, '', {fontSize:'11px',color:'#4a9eff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(0.5).setScrollFactor(0).setDepth(101);
     this.hpText = this.add.text(472, 8, '', {fontSize:'10px',color:'#fff',fontFamily:'monospace',stroke:'#000',strokeThickness:3}).setOrigin(1,0).setScrollFactor(0).setDepth(101);
+    
+    // Boss Room Indicator (Top-center above depth)
+    this.bossIndicator = this.add.text(240, 28, '', {
+      fontSize:'10px', color:'#ff4444', fontFamily:'monospace',
+      stroke:'#000', strokeThickness:2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101).setAlpha(0);
+
     this.statusText = this.add.text(240, 780, '', {fontSize:'9px',color:'#8899aa',fontFamily:'monospace',stroke:'#000',strokeThickness:2}).setOrigin(0.5,1).setScrollFactor(0).setDepth(101).setAlpha(0.7);
     
     this.hpBarBg = this.add.rectangle(472, 12, 100, 8, 0x333333).setDepth(101);
@@ -133,6 +142,16 @@ export default class DungeonScene extends Phaser.Scene {
     // Warp effect particles
     this.warpParticles = [];
     
+    // Room clear flash overlay
+    this.clearOverlay = this.add.rectangle(240, 400, CONFIG.WIDTH, CONFIG.HEIGHT, 0xffffff, 0)
+      .setScrollFactor(0).setDepth(100).setAlpha(0);
+    
+    // Room clear text pool
+    this.clearText = this.add.text(240, 400, '', {
+      fontSize: '24px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 5, fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(100).setAlpha(0);
+    
     // Start walk to first room
     this.time.delayedCall(1500, () => this.walkToRoom(2));
   }
@@ -140,19 +159,17 @@ export default class DungeonScene extends Phaser.Scene {
   updateHUD() {
     if (!this.hpBarFill) return;
     
-    // HP Bar
     const hpRatio = this.hero.hp / this.hero.maxHp;
     this.hpBarFill.width = Math.max(0, Math.min(100, hpRatio * 100));
     this.hpBarFill.setAlpha(hpRatio > 0.3 ? 1 : 0.3);
     this.hpText.setText(`❤ ${Math.floor(this.hero.hp)}/${this.hero.maxHp}`);
 
-    // Progression Bar
     const currentStep = this.roomSequence.indexOf(this.currentRoomIdx) + 1;
     const progress = (currentStep / this.roomSequence.length) * 240;
     this.progBarFill.width = progress;
     this.progBarText.setText(`Step: ${currentStep} / ${this.roomSequence.length}`);
 
-    // Minimap Update
+    // Minimap
     this.minimapGfx.clear();
     const minSize = 20;
     for (let y = 0; y < 4; y++) {
@@ -170,10 +187,71 @@ export default class DungeonScene extends Phaser.Scene {
         }
       }
     }
-    
+
     this.goldText.setText(`✦ ${this.hero.gold}`);
     this.depthText.setText(`Floor ${this.depth}`);
+
+    // Boss Room Indicator — show for last room in row (rooms 4, 9, 14, 19)
+    const roomIdx = this.getCurrentRoomIdx();
+    if (this.rooms[roomIdx]?.isBoss) {
+      this.bossIndicator.setText('👑 BOSS ROOM').setAlpha(1);
+    } else if ((roomIdx + 1) % 5 === 0 && roomIdx !== 0) {
+      this.bossIndicator.setText('⚠ LAST ROOM').setAlpha(0.7);
+    } else {
+      this.bossIndicator.setAlpha(0);
+    }
+
     this.statusText.setText(this.statusText.text);
+  }
+
+  /**
+   * Show hero attack visual — a brief slash line toward the target
+   */
+  showHeroAttack(fromX, fromY, toX, toY, isCrit) {
+    const color = isCrit ? 0xffaa00 : 0x88bbff;
+    const width = isCrit ? 3 : 2;
+    const gfx = this.add.graphics().setDepth(15);
+    gfx.lineStyle(width, color, 0.9);
+    gfx.beginPath();
+    gfx.moveTo(fromX, fromY);
+    gfx.lineTo(toX, toY);
+    gfx.strokePath();
+    this.tweens.add({
+      targets: gfx,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => gfx.destroy(),
+    });
+  }
+
+  /**
+   * Room clear flash effect
+   */
+  showRoomClearEffect() {
+    // Quick white flash
+    this.clearOverlay.setAlpha(0.15);
+    this.tweens.add({
+      targets: this.clearOverlay,
+      alpha: 0,
+      duration: 300,
+    });
+
+    // "CLEARED!" text floats up
+    const rmIdx = this.getCurrentRoomIdx();
+    const isBoss = this.rooms[rmIdx]?.isBoss;
+    this.clearText.setText(isBoss ? '🏆 BOSS CLEARED! 🏆' : '✅ CLEARED!');
+    this.clearText.setColor(isBoss ? '#ffaa00' : '#44ff88');
+    this.clearText.setAlpha(1);
+    this.clearText.setScale(1.5);
+    this.clearText.y = 380;
+    this.tweens.add({
+      targets: this.clearText,
+      y: 320,
+      alpha: 0,
+      scale: 1,
+      duration: 1200,
+      ease: 'Power2',
+    });
   }
 
   /**
@@ -194,57 +272,51 @@ export default class DungeonScene extends Phaser.Scene {
     const room = this.rooms[roomIdx];
     const RT = CONFIG.RENDER_TILE;
     
-    // Freeze + hide hero
     this.mode = 'idle';
     this.hero.setVisible(false);
     this.hero.moveTarget = null;
     this.statusText.setText('🌀 Warping...');
     
-    // Camera flash (blue) masks the transition
     this.cameras.main.flash(350, 68, 136, 255, true);
     
-    // After brief delay, place hero at left door of new room & walk in
     this.time.delayedCall(550, () => {
       const targetGY = room.y + Math.floor(room.h * 0.5);
       const doorX = room.x * RT;
       const doorY = targetGY * RT;
       
-      // Place hero at room's LEFT DOOR
       this.hero.heroX = doorX;
       this.hero.heroY = doorY;
       this.hero.x = doorX;
       this.hero.y = doorY;
       this.hero.setVisible(true);
       
-      // Walk hero from door to room entrance (30% in)
       const entranceX = (room.x + Math.floor(room.w * 0.3)) * RT;
       this.hero.setMoveTarget(entranceX, doorY);
       
       this.currentRoomIdx = roomIdx;
       this.mode = 'walk';
-      this.statusText.setText(`➡ Room ${step}`);
+      
+      // Show boss indicator for boss room
+      if (room.isBoss) {
+        this.statusText.setText('👑 BOSS ROOM');
+      } else {
+        this.statusText.setText(`➡ Room ${step}`);
+      }
     });
   }
 
-  /**
-   * Walk hero to the next room (same row) — purely horizontal movement
-   */
   walkToRoom(step) {
     const roomIdx = this.roomSequence[step - 1];
     const room = this.rooms[roomIdx];
     const RT = CONFIG.RENDER_TILE;
     const targetGX = room.x + Math.floor(room.w * 0.3);
     
-    // Use hero's current Y to guarantee zero vertical drift
     this.hero.setMoveTarget(targetGX * RT, this.hero.heroY);
     this.currentRoomIdx = roomIdx;
     this.mode = 'walk';
     this.statusText.setText(`➡ Room ${step}`);
   }
 
-  /**
-   * Show visual warp effect (particles streaming to destination)
-   */
   showWarpEffect(startX, startY, endX, endY) {
     const duration = 500;
 
@@ -295,31 +367,34 @@ export default class DungeonScene extends Phaser.Scene {
         this.hero.gold += 20;
         this.statusText.setText('✅ Cleared!');
         
-        // Check if this is the last room of current row
+        // Tier 1.4: Room clear effect
+        this.showRoomClearEffect();
+        
         const row = Math.floor(roomIdx / this.roomsX);
         const isLastRoomInRow = (roomIdx + 1) % this.roomsX === 0;
-        
-        // Find current step (1-indexed) in roomSequence
         const currentStep = this.roomSequence.indexOf(roomIdx) + 1;
         
         if (isLastRoomInRow && currentStep < this.roomSequence.length) {
-          // Last room of row → warp to first room of next row
-          this.time.delayedCall(500, () => {
+          this.time.delayedCall(800, () => {
             this.warpToRoom(currentStep + 1);
           });
         } else if (currentStep < this.roomSequence.length) {
-          // Not last room of row → walk to next room (normal)
-          this.time.delayedCall(500, () => {
+          this.time.delayedCall(800, () => {
             this.walkToRoom(currentStep + 1);
           });
         } else {
-          // Last room in entire dungeon → victory!
-          this.time.delayedCall(500, () => {
+          this.time.delayedCall(800, () => {
             this.warpToRoom(currentStep + 1);
           });
         }
       } else {
-        this.statusText.setText(`⚔ ${alive} ${alive === 1 ? 'enemy' : 'enemies'}`);
+        // Tier 1.5: Show boss indicator in status for boss room
+        const room = this.rooms[roomIdx];
+        if (room?.isBoss) {
+          this.statusText.setText(`👑 BOSS ⚔ ${alive} ${alive === 1 ? 'enemy' : 'enemies'}`);
+        } else {
+          this.statusText.setText(`⚔ ${alive} ${alive === 1 ? 'enemy' : 'enemies'}`);
+        }
       }
     }
     
@@ -352,5 +427,8 @@ export default class DungeonScene extends Phaser.Scene {
     this.progBarFill?.destroy();
     this.progBarText?.destroy();
     this.minimapGfx?.destroy();
+    this.clearOverlay?.destroy();
+    this.clearText?.destroy();
+    this.bossIndicator?.destroy();
   }
 }
